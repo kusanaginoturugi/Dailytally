@@ -27,7 +27,7 @@ init();
 
 async function init() {
   state = await loadState();
-  activeTab = localStorage.getItem(ACTIVE_TAB_KEY) || state.settings.activeTab || "admin";
+  activeTab = getSavedActiveTab();
 
   if (!state.settings.weekStart) {
     state.settings.weekStart = toISODate(new Date());
@@ -35,6 +35,15 @@ async function init() {
 
   setInterval(refreshStateFromDatabase, REFRESH_INTERVAL_MS);
   render();
+}
+
+function getSavedActiveTab() {
+  const savedTab = localStorage.getItem(ACTIVE_TAB_KEY);
+  return isKnownTab(savedTab) ? savedTab : "admin";
+}
+
+function isKnownTab(tabName) {
+  return tabName === "admin" || tabName === "summary" || fellowshipNames.includes(tabName);
 }
 
 function toISODate(date) {
@@ -115,12 +124,7 @@ function normalizeStateShape(targetState) {
   targetState.settings.itemCount = [7, 8, 9].includes(Number(targetState.settings.itemCount))
     ? Number(targetState.settings.itemCount)
     : 9;
-  targetState.settings.activeTab =
-    targetState.settings.activeTab === "admin" ||
-    targetState.settings.activeTab === "summary" ||
-    fellowshipNames.includes(targetState.settings.activeTab)
-      ? targetState.settings.activeTab
-      : "admin";
+  targetState.settings.activeTab = "admin";
 
   if (!targetState.fellowships) {
     targetState.fellowships = {};
@@ -332,7 +336,6 @@ function renderTabs() {
   adminButton.type = "button";
   adminButton.addEventListener("click", () => {
     activeTab = "admin";
-    state.settings.activeTab = activeTab;
     localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
     render();
   });
@@ -345,7 +348,6 @@ function renderTabs() {
     button.type = "button";
     button.addEventListener("click", () => {
       activeTab = name;
-      state.settings.activeTab = activeTab;
       localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
       render();
     });
@@ -358,7 +360,6 @@ function renderTabs() {
   summaryButton.type = "button";
   summaryButton.addEventListener("click", () => {
     activeTab = "summary";
-    state.settings.activeTab = activeTab;
     localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
     render();
   });
