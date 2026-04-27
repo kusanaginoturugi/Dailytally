@@ -18,6 +18,7 @@ const tabButtons = document.getElementById("tabButtons");
 const pageContainer = document.getElementById("pageContainer");
 const weekStartInput = document.getElementById("weekStart");
 const itemCountSelect = document.getElementById("itemCount");
+const seekerStartInput = document.getElementById("seekerStart");
 
 let state = loadState();
 let activeTab = state.settings.activeTab || fellowshipNames[0];
@@ -31,6 +32,7 @@ function init() {
 
   weekStartInput.value = state.settings.weekStart;
   itemCountSelect.value = String(state.settings.itemCount);
+  seekerStartInput.value = state.settings.seekerStart;
 
   weekStartInput.addEventListener("change", () => {
     state.settings.weekStart = weekStartInput.value || toISODate(new Date());
@@ -40,6 +42,12 @@ function init() {
 
   itemCountSelect.addEventListener("change", () => {
     state.settings.itemCount = Number(itemCountSelect.value);
+    saveState();
+    render();
+  });
+
+  seekerStartInput.addEventListener("change", () => {
+    state.settings.seekerStart = seekerStartInput.value || state.settings.weekStart;
     saveState();
     render();
   });
@@ -69,6 +77,11 @@ function getWeekDates() {
   });
 }
 
+function formatShortDate(iso) {
+  const date = parseISODate(iso);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
 function getActiveItems() {
   return ITEMS.slice(0, state.settings.itemCount);
 }
@@ -77,13 +90,26 @@ function createEmptyDay() {
   return Object.fromEntries(ITEMS.map((item) => [item.key, 0]));
 }
 
+function createEmptyTargets() {
+  return Object.fromEntries(ITEMS.map((item) => [item.key, 0]));
+}
+
 function ensureStateShape() {
   if (!state.settings) {
-    state.settings = { weekStart: toISODate(new Date()), itemCount: 9, activeTab: fellowshipNames[0] };
+    state.settings = {
+      weekStart: toISODate(new Date()),
+      itemCount: 9,
+      activeTab: fellowshipNames[0],
+      seekerStart: "2026-04-28",
+    };
   }
 
   if (!state.settings.weekStart) {
     state.settings.weekStart = toISODate(new Date());
+  }
+
+  if (!state.settings.seekerStart) {
+    state.settings.seekerStart = "2026-04-28";
   }
 
   state.settings.itemCount = [7, 8, 9].includes(Number(state.settings.itemCount))
@@ -96,6 +122,10 @@ function ensureStateShape() {
 
   if (!state.fellowships) {
     state.fellowships = {};
+  }
+
+  if (!state.targets) {
+    state.targets = createEmptyTargets();
   }
 
   Array.from({ length: fellowshipNames.length }, (_, i) => `伝道会${i + 1}`).forEach((oldName, index) => {
@@ -121,8 +151,14 @@ function loadState() {
     try {
       const legacyParsed = JSON.parse(legacyRaw);
       const migrated = {
-        settings: { weekStart: toISODate(new Date()), itemCount: 9, activeTab: fellowshipNames[0] },
+        settings: {
+          weekStart: toISODate(new Date()),
+          itemCount: 9,
+          activeTab: fellowshipNames[0],
+          seekerStart: "2026-04-28",
+        },
         fellowships: legacyParsed,
+        targets: createEmptyTargets(),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
       return migrated;
@@ -135,16 +171,18 @@ function loadState() {
     const persisted = localStorage.getItem(STORAGE_KEY);
     const raw = JSON.parse(persisted || "null") || migrateLegacyState() || {};
     const loaded = {
-      settings: raw.settings || { weekStart: "", itemCount: 9, activeTab: fellowshipNames[0] },
+      settings: raw.settings || { weekStart: "", itemCount: 9, activeTab: fellowshipNames[0], seekerStart: "2026-04-28" },
       fellowships: raw.fellowships || {},
+      targets: raw.targets || createEmptyTargets(),
     };
     state = loaded;
     ensureStateShape();
     return state;
   } catch (_error) {
     return {
-      settings: { weekStart: "", itemCount: 9, activeTab: fellowshipNames[0] },
+      settings: { weekStart: "", itemCount: 9, activeTab: fellowshipNames[0], seekerStart: "2026-04-28" },
       fellowships: Object.fromEntries(fellowshipNames.map((name) => [name, {}])),
+      targets: createEmptyTargets(),
     };
   }
 }
@@ -164,6 +202,19 @@ function setValue(name, dateId, itemKey, value) {
   }
   state.fellowships[name][dateId][itemKey] = Math.max(0, Number(value) || 0);
   saveState();
+}
+
+function getTargetValue(itemKey) {
+  return Number(state.targets[itemKey]) || 0;
+}
+
+function setTargetValue(itemKey, value) {
+  state.targets[itemKey] = Math.max(0, Number(value) || 0);
+  saveState();
+}
+
+function canEditTargets() {
+  return toISODate(new Date()) === state.settings.weekStart;
 }
 
 function renderTabs() {
@@ -215,7 +266,7 @@ function fillSummaryHeaderRow(rowEl) {
 
   getActiveItems().forEach((item) => {
     const th = document.createElement("th");
-    th.textContent = item.summaryLabel || item.label;
+    th.textContent = item.key === "seekers" ? `得道者数(${formatShortDate(state.settings.seekerStart)}～)` : item.summaryLabel || item.label;
     rowEl.appendChild(th);
   });
 }
@@ -290,9 +341,33 @@ function renderSummaryPage() {
   targetLabelCell.textContent = "目標数";
   targetRow.appendChild(targetLabelCell);
 
+  const targetsEditable = canEditTargets();
+
   getActiveItems().forEach((item) => {
     const td = document.createElement("td");
-    td.innerHTML = `<span class="summary-value"></span><span class="summary-unit">${item.unit}</span>`;
+    const currentValue = getTargetValue(item.key);
+
+    if (targetsEditable) {
+      const input = document.createElement("input");
+      input.className = "target-input";
+      input.type = "text";
+      input.inputMode = "numeric";
+      input.pattern = "[0-9]*";
+      input.value = currentValue === 0 ? "" : String(currentValue);
+      input.addEventListener("input", () => {
+        input.value = input.value.replace(/\D/g, "");
+        setTargetValue(item.key, input.value);
+      });
+      td.appendChild(input);
+      const unit = document.createElement("span");
+      unit.className = "summary-unit";
+      unit.textContent = item.unit;
+      td.appendChild(unit);
+    } else {
+      const value = currentValue || "";
+      td.innerHTML = `<span class="summary-value">${value}</span><span class="summary-unit">${item.unit}</span>`;
+    }
+
     targetRow.appendChild(td);
   });
 
@@ -319,7 +394,7 @@ function renderSummaryPage() {
 
   const totalRow = content.querySelector("#weeklyTotalRow");
   const labelCell = document.createElement("th");
-  labelCell.textContent = "1週間合計";
+  labelCell.textContent = "最終";
   totalRow.appendChild(labelCell);
 
   getActiveItems().forEach((item) => {
