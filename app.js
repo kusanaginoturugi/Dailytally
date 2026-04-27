@@ -1,20 +1,18 @@
-const FELLOWSHIP_COUNT = 9;
+const fellowshipNames = ["大江戸", "お台場", "羽田", "かながわ", "富士山", "駿天", "埼玉", "千葉", "山梨"];
 const ITEMS = [
-  { key: "seekers", label: "得道者数" },
-  { key: "tenchi", label: "天地免劫護摩木" },
-  { key: "goma", label: "各種護摩木" },
-  { key: "nyoi", label: "如意棒" },
-  { key: "sanki", label: "三期滅劫霊木" },
-  { key: "ryuge", label: "三會龍華之御柱" },
-  { key: "fuda", label: "八大明王札" },
-  { key: "zaitama", label: "明王招財玉" },
-  { key: "symbols", label: "各種符" },
+  { key: "seekers", label: "得道者数", summaryLabel: "得道者数(4/28～)", unit: "人" },
+  { key: "tenchi", label: "天地免劫護摩木", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
+  { key: "goma", label: "各種護摩木", summaryLabel: "この護摩供に向けて各種護摩木", unit: "本" },
+  { key: "nyoi", label: "如意棒", summaryLabel: "八大明王如意棒", unit: "本" },
+  { key: "sanki", label: "三期滅劫霊木", summaryLabel: "三期滅劫之霊木", unit: "本" },
+  { key: "ryuge", label: "三會龍華之御柱", summaryLabel: "三會龍華之御柱", unit: "本" },
+  { key: "fuda", label: "八大明王札", summaryLabel: "八大明王札", unit: "体" },
+  { key: "zaitama", label: "明王招財玉", summaryLabel: "明王招財玉", unit: "組" },
+  { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
 ];
 
 const STORAGE_KEY = "daily-tally-v2";
 const LEGACY_STORAGE_KEYS = ["daily-tally-v1"];
-
-const fellowshipNames = Array.from({ length: FELLOWSHIP_COUNT }, (_, i) => `伝道会${i + 1}`);
 
 const tabButtons = document.getElementById("tabButtons");
 const pageContainer = document.getElementById("pageContainer");
@@ -99,6 +97,13 @@ function ensureStateShape() {
   if (!state.fellowships) {
     state.fellowships = {};
   }
+
+  Array.from({ length: fellowshipNames.length }, (_, i) => `伝道会${i + 1}`).forEach((oldName, index) => {
+    const newName = fellowshipNames[index];
+    if (state.fellowships[oldName] && !state.fellowships[newName]) {
+      state.fellowships[newName] = state.fellowships[oldName];
+    }
+  });
 
   fellowshipNames.forEach((name) => {
     if (!state.fellowships[name]) {
@@ -204,6 +209,17 @@ function fillHeaderRow(rowEl) {
   });
 }
 
+function fillSummaryHeaderRow(rowEl) {
+  rowEl.innerHTML = "";
+  rowEl.appendChild(document.createElement("th"));
+
+  getActiveItems().forEach((item) => {
+    const th = document.createElement("th");
+    th.textContent = item.summaryLabel || item.label;
+    rowEl.appendChild(th);
+  });
+}
+
 function renderInputPage(name) {
   const template = document.getElementById("inputPageTemplate");
   const content = template.content.cloneNode(true);
@@ -222,11 +238,13 @@ function renderInputPage(name) {
     getActiveItems().forEach((item) => {
       const td = document.createElement("td");
       const input = document.createElement("input");
-      input.type = "number";
-      input.min = "0";
-      input.step = "1";
-      input.value = String(getValue(name, date.id, item.key));
+      const currentValue = getValue(name, date.id, item.key);
+      input.type = "text";
+      input.inputMode = "numeric";
+      input.pattern = "[0-9]*";
+      input.value = currentValue === 0 ? "" : String(currentValue);
       input.addEventListener("input", () => {
+        input.value = input.value.replace(/\D/g, "");
         setValue(name, date.id, item.key, input.value);
       });
       td.appendChild(input);
@@ -256,10 +274,29 @@ function renderSummaryPage() {
   const template = document.getElementById("summaryPageTemplate");
   const content = template.content.cloneNode(true);
 
-  fillHeaderRow(content.querySelector("#summaryHeaderRow"));
+  content.querySelector(".summary-title").textContent = `${fellowshipNames.length}伝道会 合計ページ`;
+  content.querySelectorAll("[data-summary-colspan]").forEach((cell) => {
+    cell.colSpan = getActiveItems().length + 1;
+  });
+  content.querySelector("[data-phone-colspan]").colSpan = Math.max(1, getActiveItems().length - 5);
+  fillSummaryHeaderRow(content.querySelector("#summaryHeaderRow"));
 
   const tbody = content.querySelector("tbody");
   const weeklyTotals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
+  const targetRow = document.createElement("tr");
+  targetRow.className = "target-row";
+
+  const targetLabelCell = document.createElement("th");
+  targetLabelCell.textContent = "目標数";
+  targetRow.appendChild(targetLabelCell);
+
+  getActiveItems().forEach((item) => {
+    const td = document.createElement("td");
+    td.innerHTML = `<span class="summary-value"></span><span class="summary-unit">${item.unit}</span>`;
+    targetRow.appendChild(td);
+  });
+
+  tbody.appendChild(targetRow);
 
   getWeekDates().forEach((date) => {
     const dayTotals = getDayTotals(date.id);
@@ -271,7 +308,8 @@ function renderSummaryPage() {
 
     getActiveItems().forEach((item) => {
       const td = document.createElement("td");
-      td.textContent = String(dayTotals[item.key]);
+      const value = dayTotals[item.key] || "";
+      td.innerHTML = `<span class="summary-value">${value}</span><span class="summary-unit">${item.unit}</span>`;
       tr.appendChild(td);
       weeklyTotals[item.key] += dayTotals[item.key];
     });
@@ -286,7 +324,8 @@ function renderSummaryPage() {
 
   getActiveItems().forEach((item) => {
     const td = document.createElement("td");
-    td.textContent = String(weeklyTotals[item.key]);
+    const value = weeklyTotals[item.key] || "";
+    td.innerHTML = `<span class="summary-value">${value}</span><span class="summary-unit">${item.unit}</span>`;
     totalRow.appendChild(td);
   });
 
