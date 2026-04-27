@@ -26,7 +26,7 @@ function createDefaultState() {
     settings: {
       weekStart: todayISO(),
       itemCount: 9,
-      activeTab: FELLOWSHIP_NAMES[0],
+      activeTab: "admin",
       seekerStart: "2026-04-28",
     },
     fellowships: Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, {}])),

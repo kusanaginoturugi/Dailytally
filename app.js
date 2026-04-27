@@ -21,13 +21,13 @@ const tabButtons = document.getElementById("tabButtons");
 const pageContainer = document.getElementById("pageContainer");
 
 let state = createDefaultState();
-let activeTab = fellowshipNames[0];
+let activeTab = "admin";
 
 init();
 
 async function init() {
   state = await loadState();
-  activeTab = localStorage.getItem(ACTIVE_TAB_KEY) || state.settings.activeTab || fellowshipNames[0];
+  activeTab = localStorage.getItem(ACTIVE_TAB_KEY) || state.settings.activeTab || "admin";
 
   if (!state.settings.weekStart) {
     state.settings.weekStart = toISODate(new Date());
@@ -86,7 +86,7 @@ function createDefaultState() {
     settings: {
       weekStart: "",
       itemCount: 9,
-      activeTab: fellowshipNames[0],
+      activeTab: "admin",
       seekerStart: "2026-04-28",
     },
     fellowships: Object.fromEntries(fellowshipNames.map((name) => [name, {}])),
@@ -99,7 +99,7 @@ function normalizeStateShape(targetState) {
     targetState.settings = {
       weekStart: toISODate(new Date()),
       itemCount: 9,
-      activeTab: fellowshipNames[0],
+      activeTab: "admin",
       seekerStart: "2026-04-28",
     };
   }
@@ -120,7 +120,7 @@ function normalizeStateShape(targetState) {
     targetState.settings.activeTab === "summary" ||
     fellowshipNames.includes(targetState.settings.activeTab)
       ? targetState.settings.activeTab
-      : fellowshipNames[0];
+      : "admin";
 
   if (!targetState.fellowships) {
     targetState.fellowships = {};
@@ -167,7 +167,7 @@ function loadLocalState() {
         settings: {
           weekStart: toISODate(new Date()),
           itemCount: 9,
-          activeTab: fellowshipNames[0],
+          activeTab: "admin",
           seekerStart: "2026-04-28",
         },
         fellowships: legacyParsed,
@@ -186,7 +186,7 @@ function loadLocalState() {
       settings: raw.settings || {
         weekStart: "",
         itemCount: 9,
-        activeTab: fellowshipNames[0],
+        activeTab: "admin",
         seekerStart: "2026-04-28",
       },
       fellowships: raw.fellowships || {},
@@ -326,6 +326,18 @@ function createTargetInput(itemKey, currentValue) {
 function renderTabs() {
   tabButtons.innerHTML = "";
 
+  const adminButton = document.createElement("button");
+  adminButton.className = `tab-button ${activeTab === "admin" ? "active" : ""}`;
+  adminButton.textContent = "管理ページ";
+  adminButton.type = "button";
+  adminButton.addEventListener("click", () => {
+    activeTab = "admin";
+    state.settings.activeTab = activeTab;
+    localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+    render();
+  });
+  tabButtons.appendChild(adminButton);
+
   fellowshipNames.forEach((name) => {
     const button = document.createElement("button");
     button.className = `tab-button ${activeTab === name ? "active" : ""}`;
@@ -352,17 +364,6 @@ function renderTabs() {
   });
   tabButtons.appendChild(summaryButton);
 
-  const adminButton = document.createElement("button");
-  adminButton.className = `tab-button ${activeTab === "admin" ? "active" : ""}`;
-  adminButton.textContent = "管理ページ";
-  adminButton.type = "button";
-  adminButton.addEventListener("click", () => {
-    activeTab = "admin";
-    state.settings.activeTab = activeTab;
-    localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
-    render();
-  });
-  tabButtons.appendChild(adminButton);
 }
 
 function fillHeaderRow(rowEl) {
