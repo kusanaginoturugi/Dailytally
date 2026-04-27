@@ -362,7 +362,6 @@ function renderSummaryPage() {
   const template = document.getElementById("summaryPageTemplate");
   const content = template.content.cloneNode(true);
 
-  content.querySelector(".summary-title").textContent = `${fellowshipNames.length}伝道会 合計ページ`;
   content.querySelectorAll("[data-summary-colspan]").forEach((cell) => {
     cell.colSpan = getActiveItems().length + 1;
   });
