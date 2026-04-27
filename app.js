@@ -19,6 +19,7 @@ const pageContainer = document.getElementById("pageContainer");
 const weekStartInput = document.getElementById("weekStart");
 const itemCountSelect = document.getElementById("itemCount");
 const seekerStartInput = document.getElementById("seekerStart");
+const ceremonyNumberInput = document.getElementById("ceremonyNumber");
 
 let state = loadState();
 let activeTab = state.settings.activeTab || fellowshipNames[0];
@@ -33,6 +34,7 @@ function init() {
   weekStartInput.value = state.settings.weekStart;
   itemCountSelect.value = String(state.settings.itemCount);
   seekerStartInput.value = state.settings.seekerStart;
+  ceremonyNumberInput.value = String(state.settings.ceremonyNumber);
 
   weekStartInput.addEventListener("change", () => {
     state.settings.weekStart = weekStartInput.value || toISODate(new Date());
@@ -48,6 +50,13 @@ function init() {
 
   seekerStartInput.addEventListener("change", () => {
     state.settings.seekerStart = seekerStartInput.value || state.settings.weekStart;
+    saveState();
+    render();
+  });
+
+  ceremonyNumberInput.addEventListener("input", () => {
+    ceremonyNumberInput.value = ceremonyNumberInput.value.replace(/\D/g, "");
+    state.settings.ceremonyNumber = Number(ceremonyNumberInput.value) || 30;
     saveState();
     render();
   });
@@ -101,6 +110,7 @@ function ensureStateShape() {
       itemCount: 9,
       activeTab: fellowshipNames[0],
       seekerStart: "2026-04-28",
+      ceremonyNumber: 30,
     };
   }
 
@@ -110,6 +120,10 @@ function ensureStateShape() {
 
   if (!state.settings.seekerStart) {
     state.settings.seekerStart = "2026-04-28";
+  }
+
+  if (!state.settings.ceremonyNumber) {
+    state.settings.ceremonyNumber = 30;
   }
 
   state.settings.itemCount = [7, 8, 9].includes(Number(state.settings.itemCount))
@@ -156,6 +170,7 @@ function loadState() {
           itemCount: 9,
           activeTab: fellowshipNames[0],
           seekerStart: "2026-04-28",
+          ceremonyNumber: 30,
         },
         fellowships: legacyParsed,
         targets: createEmptyTargets(),
@@ -171,7 +186,13 @@ function loadState() {
     const persisted = localStorage.getItem(STORAGE_KEY);
     const raw = JSON.parse(persisted || "null") || migrateLegacyState() || {};
     const loaded = {
-      settings: raw.settings || { weekStart: "", itemCount: 9, activeTab: fellowshipNames[0], seekerStart: "2026-04-28" },
+      settings: raw.settings || {
+        weekStart: "",
+        itemCount: 9,
+        activeTab: fellowshipNames[0],
+        seekerStart: "2026-04-28",
+        ceremonyNumber: 30,
+      },
       fellowships: raw.fellowships || {},
       targets: raw.targets || createEmptyTargets(),
     };
@@ -180,7 +201,13 @@ function loadState() {
     return state;
   } catch (_error) {
     return {
-      settings: { weekStart: "", itemCount: 9, activeTab: fellowshipNames[0], seekerStart: "2026-04-28" },
+      settings: {
+        weekStart: "",
+        itemCount: 9,
+        activeTab: fellowshipNames[0],
+        seekerStart: "2026-04-28",
+        ceremonyNumber: 30,
+      },
       fellowships: Object.fromEntries(fellowshipNames.map((name) => [name, {}])),
       targets: createEmptyTargets(),
     };
@@ -362,6 +389,8 @@ function renderSummaryPage() {
   const template = document.getElementById("summaryPageTemplate");
   const content = template.content.cloneNode(true);
 
+  content.querySelector("[data-summary-title]").textContent =
+    `～第${state.settings.ceremonyNumber}回八大明王護摩供　集計表～　報告数は累計数です`;
   content.querySelectorAll("[data-summary-colspan]").forEach((cell) => {
     cell.colSpan = getActiveItems().length + 1;
   });
