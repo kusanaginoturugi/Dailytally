@@ -392,7 +392,7 @@ function fillSummaryHeaderRow(rowEl) {
 function renderInputPage(name) {
   const template = document.getElementById("inputPageTemplate");
   const content = template.content.cloneNode(true);
-  content.querySelector(".page-title").textContent = `${name} 入力ページ`;
+  content.querySelector(".page-title").textContent = `第${getCeremonyNumber()}回八大明王護摩供　${name}`;
 
   fillHeaderRow(content.querySelector("#inputHeaderRow"));
   const tbody = content.querySelector("tbody");
