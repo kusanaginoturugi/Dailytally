@@ -217,6 +217,20 @@ function canEditTargets() {
   return toISODate(new Date()) === state.settings.weekStart;
 }
 
+function createTargetInput(itemKey, currentValue) {
+  const input = document.createElement("input");
+  input.className = "target-input";
+  input.type = "text";
+  input.inputMode = "numeric";
+  input.pattern = "[0-9]*";
+  input.value = currentValue === 0 ? "" : String(currentValue);
+  input.addEventListener("input", () => {
+    input.value = input.value.replace(/\D/g, "");
+    setTargetValue(itemKey, input.value);
+  });
+  return input;
+}
+
 function renderTabs() {
   tabButtons.innerHTML = "";
 
@@ -278,6 +292,29 @@ function renderInputPage(name) {
 
   fillHeaderRow(content.querySelector("#inputHeaderRow"));
   const tbody = content.querySelector("tbody");
+  const targetRow = document.createElement("tr");
+  targetRow.className = "target-row";
+
+  const targetLabelCell = document.createElement("th");
+  targetLabelCell.textContent = "目標数";
+  targetRow.appendChild(targetLabelCell);
+
+  const targetsEditable = canEditTargets();
+
+  getActiveItems().forEach((item) => {
+    const td = document.createElement("td");
+    const currentValue = getTargetValue(item.key);
+
+    if (targetsEditable) {
+      td.appendChild(createTargetInput(item.key, currentValue));
+    } else {
+      td.textContent = currentValue === 0 ? "" : String(currentValue);
+    }
+
+    targetRow.appendChild(td);
+  });
+
+  tbody.appendChild(targetRow);
 
   getWeekDates().forEach((date) => {
     const tr = document.createElement("tr");
@@ -348,17 +385,7 @@ function renderSummaryPage() {
     const currentValue = getTargetValue(item.key);
 
     if (targetsEditable) {
-      const input = document.createElement("input");
-      input.className = "target-input";
-      input.type = "text";
-      input.inputMode = "numeric";
-      input.pattern = "[0-9]*";
-      input.value = currentValue === 0 ? "" : String(currentValue);
-      input.addEventListener("input", () => {
-        input.value = input.value.replace(/\D/g, "");
-        setTargetValue(item.key, input.value);
-      });
-      td.appendChild(input);
+      td.appendChild(createTargetInput(item.key, currentValue));
       const unit = document.createElement("span");
       unit.className = "summary-unit";
       unit.textContent = item.unit;

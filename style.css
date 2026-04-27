@@ -113,6 +113,19 @@ main {
   text-align: right;
 }
 
+.data-table .target-row th,
+.data-table .target-row td {
+  background: #f4f4f5;
+  font-weight: 700;
+}
+
+.data-table input.target-input {
+  width: 96px;
+  border: 1px solid #a1a1aa;
+  border-radius: 6px;
+  padding: 4px;
+}
+
 .data-table tfoot th,
 .data-table tfoot td {
   background: #f4f4f5;
@@ -210,6 +223,7 @@ main {
 .summary-table .target-row th,
 .summary-table .target-row td {
   border-bottom-width: 2px;
+  background: #ffffff;
 }
 
 .summary-table tfoot th,
@@ -239,6 +253,13 @@ main {
   background: transparent;
   font: inherit;
   text-align: right;
+}
+
+.summary-table input.target-input {
+  width: calc(100% - 18px);
+  border: 0;
+  border-radius: 0;
+  padding: 0 12px 0 0;
 }
 
 .summary-note {
