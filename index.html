@@ -13,25 +13,6 @@
     </header>
 
     <main>
-      <section class="settings" aria-label="表示設定">
-        <label>
-          週の開始日
-          <input id="weekStart" type="date" />
-        </label>
-        <label>
-          項目数
-          <select id="itemCount">
-            <option value="7">7項目</option>
-            <option value="8">8項目</option>
-            <option value="9" selected>9項目</option>
-          </select>
-        </label>
-        <label>
-          得道者数開始日
-          <input id="seekerStart" type="date" />
-        </label>
-      </section>
-
       <section class="tabs" aria-label="伝道会ページ切り替え">
         <div id="tabButtons" class="tab-buttons"></div>
       </section>
@@ -42,7 +23,7 @@
     <template id="inputPageTemplate">
       <section class="input-page">
         <h2 class="page-title"></h2>
-        <p class="page-description">入力数値はこの端末に自動保存されます。</p>
+        <p class="page-description">入力数値は自動保存されます。</p>
         <div class="table-wrap">
           <table class="data-table">
             <thead>
@@ -50,6 +31,34 @@
             </thead>
             <tbody></tbody>
           </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="adminPageTemplate">
+      <section class="admin-page">
+        <h2 class="page-title">管理ページ</h2>
+        <div class="settings" aria-label="表示設定">
+          <label>
+            週の開始日
+            <input id="weekStart" type="date" />
+          </label>
+          <label>
+            項目数
+            <select id="itemCount">
+              <option value="7">7項目</option>
+              <option value="8">8項目</option>
+              <option value="9">9項目</option>
+            </select>
+          </label>
+          <label>
+            得道者数開始日
+            <input id="seekerStart" type="date" />
+          </label>
+          <label>
+            護摩供回数
+            <input id="ceremonyNumber" type="text" readonly />
+          </label>
         </div>
       </section>
     </template>

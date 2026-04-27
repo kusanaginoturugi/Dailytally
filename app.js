@@ -19,9 +19,6 @@ const REFRESH_INTERVAL_MS = 15000;
 
 const tabButtons = document.getElementById("tabButtons");
 const pageContainer = document.getElementById("pageContainer");
-const weekStartInput = document.getElementById("weekStart");
-const itemCountSelect = document.getElementById("itemCount");
-const seekerStartInput = document.getElementById("seekerStart");
 
 let state = createDefaultState();
 let activeTab = fellowshipNames[0];
@@ -35,28 +32,6 @@ async function init() {
   if (!state.settings.weekStart) {
     state.settings.weekStart = toISODate(new Date());
   }
-
-  weekStartInput.value = state.settings.weekStart;
-  itemCountSelect.value = String(state.settings.itemCount);
-  seekerStartInput.value = state.settings.seekerStart;
-
-  weekStartInput.addEventListener("change", () => {
-    state.settings.weekStart = weekStartInput.value || toISODate(new Date());
-    saveSettings();
-    render();
-  });
-
-  itemCountSelect.addEventListener("change", () => {
-    state.settings.itemCount = Number(itemCountSelect.value);
-    saveSettings();
-    render();
-  });
-
-  seekerStartInput.addEventListener("change", () => {
-    state.settings.seekerStart = seekerStartInput.value || state.settings.weekStart;
-    saveSettings();
-    render();
-  });
 
   setInterval(refreshStateFromDatabase, REFRESH_INTERVAL_MS);
   render();
@@ -141,7 +116,9 @@ function normalizeStateShape(targetState) {
     ? Number(targetState.settings.itemCount)
     : 9;
   targetState.settings.activeTab =
-    targetState.settings.activeTab === "summary" || fellowshipNames.includes(targetState.settings.activeTab)
+    targetState.settings.activeTab === "admin" ||
+    targetState.settings.activeTab === "summary" ||
+    fellowshipNames.includes(targetState.settings.activeTab)
       ? targetState.settings.activeTab
       : fellowshipNames[0];
 
@@ -298,9 +275,6 @@ async function refreshStateFromDatabase() {
     }
 
     state = normalizeStateShape(await response.json());
-    weekStartInput.value = state.settings.weekStart;
-    itemCountSelect.value = String(state.settings.itemCount);
-    seekerStartInput.value = state.settings.seekerStart;
     render();
   } catch (error) {
     console.error("データベースから最新データを読み込めませんでした。", error);
@@ -377,6 +351,18 @@ function renderTabs() {
     render();
   });
   tabButtons.appendChild(summaryButton);
+
+  const adminButton = document.createElement("button");
+  adminButton.className = `tab-button ${activeTab === "admin" ? "active" : ""}`;
+  adminButton.textContent = "管理ページ";
+  adminButton.type = "button";
+  adminButton.addEventListener("click", () => {
+    activeTab = "admin";
+    state.settings.activeTab = activeTab;
+    localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+    render();
+  });
+  tabButtons.appendChild(adminButton);
 }
 
 function fillHeaderRow(rowEl) {
@@ -458,6 +444,39 @@ function renderInputPage(name) {
     });
 
     tbody.appendChild(tr);
+  });
+
+  pageContainer.innerHTML = "";
+  pageContainer.appendChild(content);
+}
+
+function renderAdminPage() {
+  const template = document.getElementById("adminPageTemplate");
+  const content = template.content.cloneNode(true);
+  const weekStartInput = content.querySelector("#weekStart");
+  const itemCountSelect = content.querySelector("#itemCount");
+  const seekerStartInput = content.querySelector("#seekerStart");
+  const ceremonyNumberInput = content.querySelector("#ceremonyNumber");
+
+  weekStartInput.value = state.settings.weekStart;
+  itemCountSelect.value = String(state.settings.itemCount);
+  seekerStartInput.value = state.settings.seekerStart;
+  ceremonyNumberInput.value = String(getCeremonyNumber());
+
+  weekStartInput.addEventListener("change", () => {
+    state.settings.weekStart = weekStartInput.value || toISODate(new Date());
+    ceremonyNumberInput.value = String(getCeremonyNumber());
+    saveSettings();
+  });
+
+  itemCountSelect.addEventListener("change", () => {
+    state.settings.itemCount = Number(itemCountSelect.value);
+    saveSettings();
+  });
+
+  seekerStartInput.addEventListener("change", () => {
+    state.settings.seekerStart = seekerStartInput.value || state.settings.weekStart;
+    saveSettings();
   });
 
   pageContainer.innerHTML = "";
@@ -559,6 +578,8 @@ function render() {
 
   if (activeTab === "summary") {
     renderSummaryPage();
+  } else if (activeTab === "admin") {
+    renderAdminPage();
   } else {
     renderInputPage(activeTab);
   }
