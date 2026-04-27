@@ -1,0 +1,120 @@
+:root {
+  color-scheme: light;
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --line: #d4d4d8;
+  --ink: #18181b;
+  --accent: #0f766e;
+  --accent-soft: #ccfbf1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+header {
+  padding: 20px 16px 8px;
+  text-align: center;
+}
+
+h1 {
+  margin: 0;
+}
+
+main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 8px 12px 32px;
+}
+
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.settings label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.settings input,
+.settings select {
+  padding: 4px 8px;
+  border: 1px solid #a1a1aa;
+  border-radius: 6px;
+}
+
+.tab-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.tab-button {
+  border: 1px solid var(--line);
+  background: var(--card);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tab-button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+.page-container {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.page-description {
+  margin-top: 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 850px;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid var(--line);
+  padding: 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.data-table input {
+  width: 96px;
+  padding: 4px;
+  border: 1px solid #a1a1aa;
+  border-radius: 6px;
+  text-align: right;
+}
+
+.data-table tfoot th,
+.data-table tfoot td {
+  background: #f4f4f5;
+  font-weight: 700;
+}
