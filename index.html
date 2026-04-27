@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>毎日集計</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>毎日集計</h1>
+      <p>9つの伝道会が毎日入力し、次ページで全体合計を確認できます。</p>
+    </header>
+
+    <main>
+      <section class="settings" aria-label="表示設定">
+        <label>
+          週の開始日
+          <input id="weekStart" type="date" />
+        </label>
+        <label>
+          項目数
+          <select id="itemCount">
+            <option value="7">7項目</option>
+            <option value="8">8項目</option>
+            <option value="9" selected>9項目</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="tabs" aria-label="伝道会ページ切り替え">
+        <div id="tabButtons" class="tab-buttons"></div>
+      </section>
+
+      <section id="pageContainer" class="page-container"></section>
+    </main>
+
+    <template id="inputPageTemplate">
+      <section class="input-page">
+        <h2 class="page-title"></h2>
+        <p class="page-description">入力数値はこの端末に自動保存されます。</p>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr id="inputHeaderRow"></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="summaryPageTemplate">
+      <section class="summary-page report-sheet">
+        <h2 class="sheet-title">～毎日集計 集計表～　報告数は累計数です</h2>
+        <p class="sheet-subtitle">9伝道会合計（大江戸・お台場・羽田・かながわ・富士山・駿天・埼玉・千葉・山梨）</p>
+        <div class="table-wrap">
+          <table class="data-table" id="summaryTable">
+            <thead>
+              <tr id="summaryHeaderRow"></tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr id="weeklyTotalRow"></tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
