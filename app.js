@@ -13,20 +13,25 @@ const ITEMS = [
 
 const STORAGE_KEY = "daily-tally-v2";
 const LEGACY_STORAGE_KEYS = ["daily-tally-v1"];
+const ACTIVE_TAB_KEY = "daily-tally-active-tab";
+const API_STATE_URL = "/api/state";
+const REFRESH_INTERVAL_MS = 15000;
 
 const tabButtons = document.getElementById("tabButtons");
 const pageContainer = document.getElementById("pageContainer");
 const weekStartInput = document.getElementById("weekStart");
 const itemCountSelect = document.getElementById("itemCount");
 const seekerStartInput = document.getElementById("seekerStart");
-const ceremonyNumberInput = document.getElementById("ceremonyNumber");
 
-let state = loadState();
-let activeTab = state.settings.activeTab || fellowshipNames[0];
+let state = createDefaultState();
+let activeTab = fellowshipNames[0];
 
 init();
 
-function init() {
+async function init() {
+  state = await loadState();
+  activeTab = localStorage.getItem(ACTIVE_TAB_KEY) || state.settings.activeTab || fellowshipNames[0];
+
   if (!state.settings.weekStart) {
     state.settings.weekStart = toISODate(new Date());
   }
@@ -34,33 +39,26 @@ function init() {
   weekStartInput.value = state.settings.weekStart;
   itemCountSelect.value = String(state.settings.itemCount);
   seekerStartInput.value = state.settings.seekerStart;
-  ceremonyNumberInput.value = String(state.settings.ceremonyNumber);
 
   weekStartInput.addEventListener("change", () => {
     state.settings.weekStart = weekStartInput.value || toISODate(new Date());
-    saveState();
+    saveSettings();
     render();
   });
 
   itemCountSelect.addEventListener("change", () => {
     state.settings.itemCount = Number(itemCountSelect.value);
-    saveState();
+    saveSettings();
     render();
   });
 
   seekerStartInput.addEventListener("change", () => {
     state.settings.seekerStart = seekerStartInput.value || state.settings.weekStart;
-    saveState();
+    saveSettings();
     render();
   });
 
-  ceremonyNumberInput.addEventListener("input", () => {
-    ceremonyNumberInput.value = ceremonyNumberInput.value.replace(/\D/g, "");
-    state.settings.ceremonyNumber = Number(ceremonyNumberInput.value) || 30;
-    saveState();
-    render();
-  });
-
+  setInterval(refreshStateFromDatabase, REFRESH_INTERVAL_MS);
   render();
 }
 
@@ -91,6 +89,11 @@ function formatShortDate(iso) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+function getCeremonyNumber() {
+  const year = parseISODate(state.settings.weekStart || toISODate(new Date())).getFullYear();
+  return year - 1995;
+}
+
 function getActiveItems() {
   return ITEMS.slice(0, state.settings.itemCount);
 }
@@ -103,60 +106,79 @@ function createEmptyTargets() {
   return Object.fromEntries(ITEMS.map((item) => [item.key, 0]));
 }
 
-function ensureStateShape() {
-  if (!state.settings) {
-    state.settings = {
+function createDefaultState() {
+  return {
+    settings: {
+      weekStart: "",
+      itemCount: 9,
+      activeTab: fellowshipNames[0],
+      seekerStart: "2026-04-28",
+    },
+    fellowships: Object.fromEntries(fellowshipNames.map((name) => [name, {}])),
+    targets: createEmptyTargets(),
+  };
+}
+
+function normalizeStateShape(targetState) {
+  if (!targetState.settings) {
+    targetState.settings = {
       weekStart: toISODate(new Date()),
       itemCount: 9,
       activeTab: fellowshipNames[0],
       seekerStart: "2026-04-28",
-      ceremonyNumber: 30,
     };
   }
 
-  if (!state.settings.weekStart) {
-    state.settings.weekStart = toISODate(new Date());
+  if (!targetState.settings.weekStart) {
+    targetState.settings.weekStart = toISODate(new Date());
   }
 
-  if (!state.settings.seekerStart) {
-    state.settings.seekerStart = "2026-04-28";
+  if (!targetState.settings.seekerStart) {
+    targetState.settings.seekerStart = "2026-04-28";
   }
 
-  if (!state.settings.ceremonyNumber) {
-    state.settings.ceremonyNumber = 30;
-  }
-
-  state.settings.itemCount = [7, 8, 9].includes(Number(state.settings.itemCount))
-    ? Number(state.settings.itemCount)
+  targetState.settings.itemCount = [7, 8, 9].includes(Number(targetState.settings.itemCount))
+    ? Number(targetState.settings.itemCount)
     : 9;
-  state.settings.activeTab =
-    state.settings.activeTab === "summary" || fellowshipNames.includes(state.settings.activeTab)
-      ? state.settings.activeTab
+  targetState.settings.activeTab =
+    targetState.settings.activeTab === "summary" || fellowshipNames.includes(targetState.settings.activeTab)
+      ? targetState.settings.activeTab
       : fellowshipNames[0];
 
-  if (!state.fellowships) {
-    state.fellowships = {};
+  if (!targetState.fellowships) {
+    targetState.fellowships = {};
   }
 
-  if (!state.targets) {
-    state.targets = createEmptyTargets();
+  if (!targetState.targets) {
+    targetState.targets = createEmptyTargets();
   }
 
   Array.from({ length: fellowshipNames.length }, (_, i) => `伝道会${i + 1}`).forEach((oldName, index) => {
     const newName = fellowshipNames[index];
-    if (state.fellowships[oldName] && !state.fellowships[newName]) {
-      state.fellowships[newName] = state.fellowships[oldName];
+    if (targetState.fellowships[oldName] && !targetState.fellowships[newName]) {
+      targetState.fellowships[newName] = targetState.fellowships[oldName];
     }
   });
 
   fellowshipNames.forEach((name) => {
-    if (!state.fellowships[name]) {
-      state.fellowships[name] = {};
+    if (!targetState.fellowships[name]) {
+      targetState.fellowships[name] = {};
     }
   });
+
+  targetState.targets = {
+    ...createEmptyTargets(),
+    ...targetState.targets,
+  };
+
+  return targetState;
 }
 
-function loadState() {
+function ensureStateShape() {
+  state = normalizeStateShape(state);
+}
+
+function loadLocalState() {
   const migrateLegacyState = () => {
     const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEYS[0]);
     if (!legacyRaw) {
@@ -170,12 +192,10 @@ function loadState() {
           itemCount: 9,
           activeTab: fellowshipNames[0],
           seekerStart: "2026-04-28",
-          ceremonyNumber: 30,
         },
         fellowships: legacyParsed,
         targets: createEmptyTargets(),
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
       return migrated;
     } catch (_error) {
       return null;
@@ -191,31 +211,100 @@ function loadState() {
         itemCount: 9,
         activeTab: fellowshipNames[0],
         seekerStart: "2026-04-28",
-        ceremonyNumber: 30,
       },
       fellowships: raw.fellowships || {},
       targets: raw.targets || createEmptyTargets(),
     };
-    state = loaded;
+    return normalizeStateShape(loaded);
+  } catch (_error) {
+    return createDefaultState();
+  }
+}
+
+async function loadState() {
+  try {
+    const response = await fetch(API_STATE_URL);
+    if (!response.ok) {
+      throw new Error(`State API returned ${response.status}`);
+    }
+
+    const remoteState = await response.json();
+    state = remoteState;
+    ensureStateShape();
+
+    const localState = loadLocalState();
+    if (hasLocalData(localState) && !hasRemoteData(state)) {
+      state = localState;
+      ensureStateShape();
+      await saveState();
+    }
+
+    return state;
+  } catch (error) {
+    console.error("データベースから読み込めませんでした。ローカルの保存データを表示します。", error);
+    state = loadLocalState();
     ensureStateShape();
     return state;
-  } catch (_error) {
-    return {
-      settings: {
-        weekStart: "",
-        itemCount: 9,
-        activeTab: fellowshipNames[0],
-        seekerStart: "2026-04-28",
-        ceremonyNumber: 30,
-      },
-      fellowships: Object.fromEntries(fellowshipNames.map((name) => [name, {}])),
-      targets: createEmptyTargets(),
-    };
+  }
+}
+
+function hasRemoteData(currentState) {
+  return hasSavedValues(currentState) || Object.values(currentState.targets || {}).some((value) => Number(value) > 0);
+}
+
+function hasLocalData(localState) {
+  return hasSavedValues(localState) || Object.values(localState.targets || {}).some((value) => Number(value) > 0);
+}
+
+function hasSavedValues(currentState) {
+  return Object.values(currentState.fellowships || {}).some((days) =>
+    Object.values(days || {}).some((day) => Object.values(day || {}).some((value) => Number(value) > 0)),
+  );
+}
+
+async function patchState(patch) {
+  try {
+    const response = await fetch(API_STATE_URL, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!response.ok) {
+      throw new Error(`State API returned ${response.status}`);
+    }
+  } catch (error) {
+    console.error("データベースに保存できませんでした。", error);
   }
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  return patchState({ type: "replace", state });
+}
+
+function saveSettings() {
+  const { weekStart, itemCount, seekerStart } = state.settings;
+  return patchState({ type: "settings", settings: { weekStart, itemCount, seekerStart } });
+}
+
+async function refreshStateFromDatabase() {
+  if (document.activeElement && ["INPUT", "SELECT"].includes(document.activeElement.tagName)) {
+    return;
+  }
+
+  try {
+    const response = await fetch(API_STATE_URL);
+    if (!response.ok) {
+      throw new Error(`State API returned ${response.status}`);
+    }
+
+    state = normalizeStateShape(await response.json());
+    weekStartInput.value = state.settings.weekStart;
+    itemCountSelect.value = String(state.settings.itemCount);
+    seekerStartInput.value = state.settings.seekerStart;
+    render();
+  } catch (error) {
+    console.error("データベースから最新データを読み込めませんでした。", error);
+  }
 }
 
 function getValue(name, dateId, itemKey) {
@@ -227,8 +316,9 @@ function setValue(name, dateId, itemKey, value) {
   if (!state.fellowships[name][dateId]) {
     state.fellowships[name][dateId] = createEmptyDay();
   }
-  state.fellowships[name][dateId][itemKey] = Math.max(0, Number(value) || 0);
-  saveState();
+  const normalizedValue = Math.max(0, Number(value) || 0);
+  state.fellowships[name][dateId][itemKey] = normalizedValue;
+  patchState({ type: "value", fellowship: name, dateId, itemKey, value: normalizedValue });
 }
 
 function getTargetValue(itemKey) {
@@ -236,8 +326,9 @@ function getTargetValue(itemKey) {
 }
 
 function setTargetValue(itemKey, value) {
-  state.targets[itemKey] = Math.max(0, Number(value) || 0);
-  saveState();
+  const normalizedValue = Math.max(0, Number(value) || 0);
+  state.targets[itemKey] = normalizedValue;
+  patchState({ type: "target", itemKey, value: normalizedValue });
 }
 
 function canEditTargets() {
@@ -269,7 +360,7 @@ function renderTabs() {
     button.addEventListener("click", () => {
       activeTab = name;
       state.settings.activeTab = activeTab;
-      saveState();
+      localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
       render();
     });
     tabButtons.appendChild(button);
@@ -282,7 +373,7 @@ function renderTabs() {
   summaryButton.addEventListener("click", () => {
     activeTab = "summary";
     state.settings.activeTab = activeTab;
-    saveState();
+    localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
     render();
   });
   tabButtons.appendChild(summaryButton);
@@ -390,7 +481,7 @@ function renderSummaryPage() {
   const content = template.content.cloneNode(true);
 
   content.querySelector("[data-summary-title]").textContent =
-    `～第${state.settings.ceremonyNumber}回八大明王護摩供　集計表～　報告数は累計数です`;
+    `～第${getCeremonyNumber()}回八大明王護摩供　集計表～　報告数は累計数です`;
   content.querySelectorAll("[data-summary-colspan]").forEach((cell) => {
     cell.colSpan = getActiveItems().length + 1;
   });
