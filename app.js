@@ -372,6 +372,10 @@ function canEditTargets() {
   return toISODate(new Date()) === state.settings.weekStart;
 }
 
+function canEditDate(dateId) {
+  return dateId >= toISODate(new Date());
+}
+
 function selectOnFocus(input) {
   input.addEventListener("focus", () => {
     input.select();
@@ -532,19 +536,25 @@ function renderInputPage(name) {
 
     getActiveItems().forEach((item) => {
       const td = document.createElement("td");
-      const input = document.createElement("input");
       const currentValue = getValue(name, date.id, item.key);
-      input.type = "text";
-      input.inputMode = "numeric";
-      input.pattern = "[0-9]*";
-      input.value = currentValue === 0 ? "" : String(currentValue);
-      selectOnFocus(input);
-      input.addEventListener("input", () => {
-        input.value = input.value.replace(/\D/g, "");
-        setValue(name, date.id, item.key, input.value);
-      });
-      td.appendChild(input);
-      appendUnit(td, item.unit);
+
+      if (canEditDate(date.id)) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.inputMode = "numeric";
+        input.pattern = "[0-9]*";
+        input.value = currentValue === 0 ? "" : String(currentValue);
+        selectOnFocus(input);
+        input.addEventListener("input", () => {
+          input.value = input.value.replace(/\D/g, "");
+          setValue(name, date.id, item.key, input.value);
+        });
+        td.appendChild(input);
+        appendUnit(td, item.unit);
+      } else {
+        appendReadonlyValue(td, currentValue, item.unit);
+      }
+
       tr.appendChild(td);
     });
 
