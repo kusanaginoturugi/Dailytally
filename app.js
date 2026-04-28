@@ -452,7 +452,13 @@ function fillHeaderRow(rowEl) {
 
   getActiveItems().forEach((item) => {
     const th = document.createElement("th");
-    th.textContent = item.label;
+    if (item.key === "tenchi") {
+      th.append("天地免劫", document.createElement("br"), "護摩木");
+    } else if (item.key === "ryuge") {
+      th.append("三會龍華", document.createElement("br"), "之御柱");
+    } else {
+      th.textContent = item.label;
+    }
     rowEl.appendChild(th);
   });
 }
