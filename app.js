@@ -388,17 +388,6 @@ function createTargetInput(name, itemKey, currentValue) {
 function renderTabs() {
   tabButtons.innerHTML = "";
 
-  const adminButton = document.createElement("button");
-  adminButton.className = `tab-button ${activeTab === "admin" ? "active" : ""}`;
-  adminButton.textContent = "管理ページ";
-  adminButton.type = "button";
-  adminButton.addEventListener("click", () => {
-    activeTab = "admin";
-    localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
-    render();
-  });
-  tabButtons.appendChild(adminButton);
-
   fellowshipNames.forEach((name) => {
     const button = document.createElement("button");
     button.className = `tab-button ${activeTab === name ? "active" : ""}`;
@@ -423,6 +412,16 @@ function renderTabs() {
   });
   tabButtons.appendChild(summaryButton);
 
+  const adminButton = document.createElement("button");
+  adminButton.className = `tab-button ${activeTab === "admin" ? "active" : ""}`;
+  adminButton.textContent = "管理ページ";
+  adminButton.type = "button";
+  adminButton.addEventListener("click", () => {
+    activeTab = "admin";
+    localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+    render();
+  });
+  tabButtons.appendChild(adminButton);
 }
 
 function fillHeaderRow(rowEl) {
