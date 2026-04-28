@@ -106,17 +106,6 @@ main {
   font-weight: 700;
 }
 
-.user-table select {
-  appearance: auto;
-  width: 100%;
-  min-width: 120px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  outline: 0;
-}
-
 .tab-buttons {
   display: flex;
   gap: 8px;

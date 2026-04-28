@@ -19,6 +19,7 @@ const STORAGE_KEY = "daily-tally-v2";
 const LEGACY_STORAGE_KEYS = ["daily-tally-v1"];
 const ACTIVE_TAB_KEY = "daily-tally-active-tab";
 const API_STATE_URL = "/api/state";
+const API_ME_URL = "/api/me";
 const REFRESH_INTERVAL_MS = 15000;
 const SETTINGS_SCHEMA_VERSION = 2;
 const FINAL_ROW_ID = "__final__";
@@ -29,11 +30,12 @@ const pageContainer = document.getElementById("pageContainer");
 
 let state = createDefaultState();
 let activeTab = "admin";
+let currentUser = null;
 
 init();
 
 async function init() {
-  state = await loadState();
+  [state, currentUser] = await Promise.all([loadState(), loadCurrentUser()]);
   activeTab = getSavedActiveTab();
 
   if (!state.settings.weekStart) {
@@ -42,6 +44,28 @@ async function init() {
 
   setInterval(refreshStateFromDatabase, REFRESH_INTERVAL_MS);
   render();
+}
+
+async function loadCurrentUser() {
+  if (window.DAILY_TALLY_USER) {
+    return normalizeCurrentUser(window.DAILY_TALLY_USER);
+  }
+
+  try {
+    const response = await fetch(API_ME_URL);
+    if (!response.ok) {
+      throw new Error(`User API returned ${response.status}`);
+    }
+    return normalizeCurrentUser(await response.json());
+  } catch (error) {
+    console.error("ログインユーザー情報を読み込めませんでした。", error);
+    return null;
+  }
+}
+
+function normalizeCurrentUser(user) {
+  const normalized = { ...createEmptyUser(), ...(user || {}) };
+  return Object.values(normalized).some((value) => String(value || "").trim() !== "") ? normalized : null;
 }
 
 function getSavedActiveTab() {
@@ -370,10 +394,6 @@ function saveSettings() {
   return patchState({ type: "settings", settings: { weekStart, weekEnd, itemCount, seekerStart, ceremonyName, schemaVersion } });
 }
 
-function saveUsers() {
-  return patchState({ type: "users", users: state.users });
-}
-
 async function refreshStateFromDatabase() {
   if (document.activeElement && ["INPUT", "SELECT"].includes(document.activeElement.tagName)) {
     return;
@@ -429,6 +449,23 @@ function canEditTargets() {
 
 function canEditDate(dateId) {
   return dateId >= toISODate(new Date());
+}
+
+function getCurrentFellowship() {
+  return fellowshipNames.includes(currentUser?.fellowship) ? currentUser.fellowship : "";
+}
+
+function canEditFellowship(name) {
+  const fellowship = getCurrentFellowship();
+  return !fellowship || fellowship === name;
+}
+
+function canEditTargetRow(name) {
+  return canEditFellowship(name) && canEditTargets();
+}
+
+function canEditDateForFellowship(name, dateId) {
+  return canEditFellowship(name) && canEditDate(dateId);
 }
 
 function selectOnFocus(input) {
@@ -566,7 +603,7 @@ function renderInputPage(name) {
   targetLabelCell.textContent = "目標";
   targetRow.appendChild(targetLabelCell);
 
-  const targetsEditable = canEditTargets();
+  const targetsEditable = canEditTargetRow(name);
 
   getActiveItems().forEach((item) => {
     const td = document.createElement("td");
@@ -595,7 +632,7 @@ function renderInputPage(name) {
       const td = document.createElement("td");
       const currentValue = getValue(name, date.id, item.key);
 
-      if (canEditDate(date.id)) {
+      if (canEditDateForFellowship(name, date.id)) {
         const input = document.createElement("input");
         input.type = "text";
         input.inputMode = "numeric";
@@ -625,19 +662,25 @@ function renderInputPage(name) {
 
   getActiveItems().forEach((item) => {
     const td = document.createElement("td");
-    const input = document.createElement("input");
     const currentValue = getFinalValue(name, item.key);
-    input.type = "text";
-    input.inputMode = "numeric";
-    input.pattern = "[0-9]*";
-    input.value = currentValue === 0 ? "" : String(currentValue);
-    selectOnFocus(input);
-    input.addEventListener("input", () => {
-      input.value = input.value.replace(/\D/g, "");
-      setValue(name, state.settings.weekEnd, item.key, input.value);
-    });
-    td.appendChild(input);
-    appendUnit(td, item.unit);
+
+    if (canEditDateForFellowship(name, state.settings.weekEnd)) {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.inputMode = "numeric";
+      input.pattern = "[0-9]*";
+      input.value = currentValue === 0 ? "" : String(currentValue);
+      selectOnFocus(input);
+      input.addEventListener("input", () => {
+        input.value = input.value.replace(/\D/g, "");
+        setValue(name, state.settings.weekEnd, item.key, input.value);
+      });
+      td.appendChild(input);
+      appendUnit(td, item.unit);
+    } else {
+      appendReadonlyValue(td, currentValue, item.unit);
+    }
+
     totalRow.appendChild(td);
   });
 
@@ -720,40 +763,10 @@ function getFinalTotals() {
   return totals;
 }
 
-function updateUser(index, key, value) {
-  state.users[index] = {
-    ...createEmptyUser(),
-    ...state.users[index],
-    [key]: value,
-  };
-  saveUsers();
-}
-
 function createUserText(value) {
   const span = document.createElement("span");
   span.textContent = value || "";
   return span;
-}
-
-function createFellowshipSelect(user, index) {
-  const select = document.createElement("select");
-  const blankOption = document.createElement("option");
-  blankOption.value = "";
-  blankOption.textContent = "";
-  select.appendChild(blankOption);
-
-  fellowshipNames.forEach((name) => {
-    const option = document.createElement("option");
-    option.value = name;
-    option.textContent = name;
-    select.appendChild(option);
-  });
-
-  select.value = user.fellowship || "";
-  select.addEventListener("change", () => {
-    updateUser(index, "fellowship", select.value);
-  });
-  return select;
 }
 
 function renderUserList(content) {
@@ -765,7 +778,7 @@ function renderUserList(content) {
     const tr = document.createElement("tr");
     const cells = [
       createUserText(normalizedUser.loginId),
-      createFellowshipSelect(normalizedUser, index),
+      createUserText(normalizedUser.fellowship),
       createUserText(normalizedUser.name),
       createUserText(normalizedUser.email),
     ];

@@ -127,6 +127,35 @@ function jsonResponse(body, init = {}) {
   });
 }
 
+function readSSOHeader(request, name) {
+  const value = request.headers.get(name);
+  if (!value) {
+    return "";
+  }
+  try {
+    return decodeURIComponent(value);
+  } catch (_error) {
+    return value;
+  }
+}
+
+function getCurrentUser(request) {
+  const email = readSSOHeader(request, "x-dailytally-email") || readSSOHeader(request, "cf-access-authenticated-user-email");
+  const user = {
+    loginId: readSSOHeader(request, "x-dailytally-login-id") || email,
+    fellowship: readSSOHeader(request, "x-dailytally-fellowship"),
+    name: readSSOHeader(request, "x-dailytally-name"),
+    email,
+  };
+
+  return Object.values(user).some((value) => String(value || "").trim() !== "") ? user : createEmptyUser();
+}
+
+function canWriteFellowship(request, fellowship) {
+  const user = getCurrentUser(request);
+  return !user.fellowship || user.fellowship === fellowship;
+}
+
 async function readState(db) {
   const row = await db.prepare("SELECT data FROM app_state WHERE id = ?").bind(STATE_ID).first();
   return normalizeState(row ? JSON.parse(row.data) : null);
@@ -157,6 +186,9 @@ async function handleStatePatch(request, env) {
     };
   } else if (patch.type === "value") {
     const { fellowship, dateId, itemKey } = patch;
+    if (!canWriteFellowship(request, fellowship)) {
+      return jsonResponse({ error: "Forbidden" }, { status: 403 });
+    }
     if (!state.fellowships[fellowship]) {
       state.fellowships[fellowship] = {};
     }
@@ -166,6 +198,9 @@ async function handleStatePatch(request, env) {
     state.fellowships[fellowship][dateId][itemKey] = toNumber(patch.value);
   } else if (patch.type === "target") {
     if (patch.fellowship) {
+      if (!canWriteFellowship(request, patch.fellowship)) {
+        return jsonResponse({ error: "Forbidden" }, { status: 403 });
+      }
       if (!state.fellowshipTargets[patch.fellowship]) {
         state.fellowshipTargets[patch.fellowship] = createEmptyTargets();
       }
@@ -195,6 +230,10 @@ async function handleApi(request, env) {
 
   if (url.pathname === "/api/state" && request.method === "PATCH") {
     return handleStatePatch(request, env);
+  }
+
+  if (url.pathname === "/api/me" && request.method === "GET") {
+    return jsonResponse(getCurrentUser(request));
   }
 
   return jsonResponse({ error: "Not found" }, { status: 404 });
