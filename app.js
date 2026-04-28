@@ -385,6 +385,25 @@ function createTargetInput(name, itemKey, currentValue) {
   return input;
 }
 
+function appendUnit(cell, unit) {
+  if (!unit) {
+    return;
+  }
+
+  const unitEl = document.createElement("span");
+  unitEl.className = "input-unit";
+  unitEl.textContent = unit;
+  cell.appendChild(unitEl);
+}
+
+function appendReadonlyValue(cell, value, unit) {
+  const valueEl = document.createElement("span");
+  valueEl.className = "input-value";
+  valueEl.textContent = value === 0 ? "" : String(value);
+  cell.appendChild(valueEl);
+  appendUnit(cell, unit);
+}
+
 function renderTabs() {
   tabButtons.innerHTML = "";
 
@@ -470,8 +489,9 @@ function renderInputPage(name) {
 
     if (targetsEditable) {
       td.appendChild(createTargetInput(name, item.key, currentValue));
+      appendUnit(td, item.unit);
     } else {
-      td.textContent = currentValue === 0 ? "" : String(currentValue);
+      appendReadonlyValue(td, currentValue, item.unit);
     }
 
     targetRow.appendChild(td);
@@ -499,6 +519,7 @@ function renderInputPage(name) {
         setValue(name, date.id, item.key, input.value);
       });
       td.appendChild(input);
+      appendUnit(td, item.unit);
       tr.appendChild(td);
     });
 

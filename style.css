@@ -120,6 +120,21 @@ main {
   text-align: right;
 }
 
+.input-unit {
+  display: inline-block;
+  min-width: 2.5em;
+  margin-left: 4px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.input-value {
+  display: inline-block;
+  min-width: 96px;
+  text-align: right;
+}
+
 .data-table .target-row th,
 .data-table .target-row td {
   background: #f4f4f5;
