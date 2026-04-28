@@ -21,6 +21,7 @@ const ACTIVE_TAB_KEY = "daily-tally-active-tab";
 const API_STATE_URL = "/api/state";
 const REFRESH_INTERVAL_MS = 15000;
 const SETTINGS_SCHEMA_VERSION = 2;
+const FINAL_ROW_ID = "__final__";
 
 const appTitle = document.getElementById("appTitle");
 const tabButtons = document.getElementById("tabButtons");
@@ -404,32 +405,6 @@ function appendReadonlyValue(cell, value, unit) {
   appendUnit(cell, unit);
 }
 
-function getFellowshipWeeklyTotals(name) {
-  const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
-
-  getWeekDates().forEach((date) => {
-    getActiveItems().forEach((item) => {
-      totals[item.key] += getValue(name, date.id, item.key);
-    });
-  });
-
-  return totals;
-}
-
-function updateInputWeeklyTotalRow(totalRow, name) {
-  const totals = getFellowshipWeeklyTotals(name);
-
-  getActiveItems().forEach((item) => {
-    const cell = totalRow.querySelector(`[data-item-key="${item.key}"]`);
-    if (!cell) {
-      return;
-    }
-
-    cell.innerHTML = "";
-    appendReadonlyValue(cell, totals[item.key], item.unit);
-  });
-}
-
 function renderTabs() {
   tabButtons.innerHTML = "";
 
@@ -524,7 +499,6 @@ function renderInputPage(name) {
   });
 
   tbody.appendChild(targetRow);
-  const totalRow = content.querySelector("#inputWeeklyTotalRow");
 
   getWeekDates().forEach((date) => {
     const tr = document.createElement("tr");
@@ -544,7 +518,6 @@ function renderInputPage(name) {
       input.addEventListener("input", () => {
         input.value = input.value.replace(/\D/g, "");
         setValue(name, date.id, item.key, input.value);
-        updateInputWeeklyTotalRow(totalRow, name);
       });
       td.appendChild(input);
       appendUnit(td, item.unit);
@@ -554,17 +527,27 @@ function renderInputPage(name) {
     tbody.appendChild(tr);
   });
 
+  const totalRow = content.querySelector("#inputWeeklyTotalRow");
   const labelCell = document.createElement("th");
   labelCell.textContent = "最終";
   totalRow.appendChild(labelCell);
 
   getActiveItems().forEach((item) => {
     const td = document.createElement("td");
-    td.dataset.itemKey = item.key;
+    const input = document.createElement("input");
+    const currentValue = getValue(name, FINAL_ROW_ID, item.key);
+    input.type = "text";
+    input.inputMode = "numeric";
+    input.pattern = "[0-9]*";
+    input.value = currentValue === 0 ? "" : String(currentValue);
+    input.addEventListener("input", () => {
+      input.value = input.value.replace(/\D/g, "");
+      setValue(name, FINAL_ROW_ID, item.key, input.value);
+    });
+    td.appendChild(input);
+    appendUnit(td, item.unit);
     totalRow.appendChild(td);
   });
-
-  updateInputWeeklyTotalRow(totalRow, name);
 
   pageContainer.innerHTML = "";
   pageContainer.appendChild(content);
@@ -641,7 +624,6 @@ function renderSummaryPage() {
   fillSummaryHeaderRow(content.querySelector("#summaryHeaderRow"));
 
   const tbody = content.querySelector("tbody");
-  const weeklyTotals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
   const targetRow = document.createElement("tr");
   targetRow.className = "target-row";
 
@@ -673,20 +655,20 @@ function renderSummaryPage() {
       const value = dayTotals[item.key] || "";
       td.innerHTML = `<span class="summary-value">${value}</span><span class="summary-unit">${item.unit}</span>`;
       tr.appendChild(td);
-      weeklyTotals[item.key] += dayTotals[item.key];
     });
 
     tbody.appendChild(tr);
   });
 
   const totalRow = content.querySelector("#weeklyTotalRow");
+  const finalTotals = getDayTotals(FINAL_ROW_ID);
   const labelCell = document.createElement("th");
   labelCell.textContent = "最終";
   totalRow.appendChild(labelCell);
 
   getActiveItems().forEach((item) => {
     const td = document.createElement("td");
-    const value = weeklyTotals[item.key] || "";
+    const value = finalTotals[item.key] || "";
     td.innerHTML = `<span class="summary-value">${value}</span><span class="summary-unit">${item.unit}</span>`;
     totalRow.appendChild(td);
   });
