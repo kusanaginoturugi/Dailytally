@@ -115,6 +115,15 @@ function createEmptyFellowshipTargets() {
   return Object.fromEntries(fellowshipNames.map((name) => [name, createEmptyTargets()]));
 }
 
+function createEmptyUser() {
+  return {
+    loginId: "",
+    fellowship: "",
+    name: "",
+    email: "",
+  };
+}
+
 function createDefaultState() {
   return {
     settings: {
@@ -129,6 +138,7 @@ function createDefaultState() {
     fellowships: Object.fromEntries(fellowshipNames.map((name) => [name, {}])),
     targets: createEmptyTargets(),
     fellowshipTargets: createEmptyFellowshipTargets(),
+    users: [],
   };
 }
 
@@ -168,6 +178,9 @@ function normalizeStateShape(targetState) {
   targetState.settings.itemCount = normalizeItemCount(targetState.settings.itemCount, targetState.settings.schemaVersion);
   targetState.settings.schemaVersion = SETTINGS_SCHEMA_VERSION;
   targetState.settings.activeTab = "admin";
+  targetState.users = Array.isArray(targetState.users)
+    ? targetState.users.map((user) => ({ ...createEmptyUser(), ...user }))
+    : [];
 
   if (!targetState.fellowships) {
     targetState.fellowships = {};
@@ -245,6 +258,7 @@ function loadLocalState() {
         fellowships: legacyParsed,
         targets: createEmptyTargets(),
         fellowshipTargets: createEmptyFellowshipTargets(),
+        users: [],
       };
       return migrated;
     } catch (_error) {
@@ -268,6 +282,7 @@ function loadLocalState() {
       fellowships: raw.fellowships || {},
       targets: raw.targets || createEmptyTargets(),
       fellowshipTargets: raw.fellowshipTargets || createEmptyFellowshipTargets(),
+      users: raw.users || [],
     };
     return normalizeStateShape(loaded);
   } catch (_error) {
@@ -303,11 +318,11 @@ async function loadState() {
 }
 
 function hasRemoteData(currentState) {
-  return hasSavedValues(currentState) || hasTargetValues(currentState);
+  return hasSavedValues(currentState) || hasTargetValues(currentState) || hasUserValues(currentState);
 }
 
 function hasLocalData(localState) {
-  return hasSavedValues(localState) || hasTargetValues(localState);
+  return hasSavedValues(localState) || hasTargetValues(localState) || hasUserValues(localState);
 }
 
 function hasSavedValues(currentState) {
@@ -322,6 +337,12 @@ function hasTargetValues(currentState) {
     Object.values(currentState.fellowshipTargets || {}).some((targets) =>
       Object.values(targets || {}).some((value) => Number(value) > 0),
     )
+  );
+}
+
+function hasUserValues(currentState) {
+  return (currentState.users || []).some((user) =>
+    ["loginId", "fellowship", "name", "email"].some((key) => String(user?.[key] || "").trim() !== ""),
   );
 }
 
@@ -347,6 +368,10 @@ function saveState() {
 function saveSettings() {
   const { weekStart, weekEnd, itemCount, seekerStart, ceremonyName, schemaVersion } = state.settings;
   return patchState({ type: "settings", settings: { weekStart, weekEnd, itemCount, seekerStart, ceremonyName, schemaVersion } });
+}
+
+function saveUsers() {
+  return patchState({ type: "users", users: state.users });
 }
 
 async function refreshStateFromDatabase() {
@@ -665,6 +690,8 @@ function renderAdminPage() {
     saveSettings();
   });
 
+  renderUserList(content);
+
   pageContainer.innerHTML = "";
   pageContainer.appendChild(content);
 }
@@ -691,6 +718,66 @@ function getFinalTotals() {
   });
 
   return totals;
+}
+
+function updateUser(index, key, value) {
+  state.users[index] = {
+    ...createEmptyUser(),
+    ...state.users[index],
+    [key]: value,
+  };
+  saveUsers();
+}
+
+function createUserText(value) {
+  const span = document.createElement("span");
+  span.textContent = value || "";
+  return span;
+}
+
+function createFellowshipSelect(user, index) {
+  const select = document.createElement("select");
+  const blankOption = document.createElement("option");
+  blankOption.value = "";
+  blankOption.textContent = "";
+  select.appendChild(blankOption);
+
+  fellowshipNames.forEach((name) => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    select.appendChild(option);
+  });
+
+  select.value = user.fellowship || "";
+  select.addEventListener("change", () => {
+    updateUser(index, "fellowship", select.value);
+  });
+  return select;
+}
+
+function renderUserList(content) {
+  const tbody = content.querySelector("#userTableBody");
+  tbody.innerHTML = "";
+
+  state.users.forEach((user, index) => {
+    const normalizedUser = { ...createEmptyUser(), ...user };
+    const tr = document.createElement("tr");
+    const cells = [
+      createUserText(normalizedUser.loginId),
+      createFellowshipSelect(normalizedUser, index),
+      createUserText(normalizedUser.name),
+      createUserText(normalizedUser.email),
+    ];
+
+    cells.forEach((field) => {
+      const td = document.createElement("td");
+      td.appendChild(field);
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
 }
 
 function getTargetTotals() {

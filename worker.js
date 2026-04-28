@@ -36,6 +36,15 @@ function createEmptyFellowshipTargets() {
   return Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, createEmptyTargets()]));
 }
 
+function createEmptyUser() {
+  return {
+    loginId: "",
+    fellowship: "",
+    name: "",
+    email: "",
+  };
+}
+
 function createDefaultState() {
   return {
     settings: {
@@ -50,6 +59,7 @@ function createDefaultState() {
     fellowships: Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, {}])),
     targets: createEmptyTargets(),
     fellowshipTargets: createEmptyFellowshipTargets(),
+    users: [],
   };
 }
 
@@ -71,6 +81,7 @@ function normalizeState(rawState) {
     state.settings.weekEnd = state.settings.weekStart;
   }
   state.settings.schemaVersion = SETTINGS_SCHEMA_VERSION;
+  state.users = Array.isArray(state.users) ? state.users.map((user) => ({ ...createEmptyUser(), ...user })) : [];
 
   state.fellowships = state.fellowships || {};
   state.fellowshipTargets = state.fellowshipTargets || {};
@@ -162,6 +173,8 @@ async function handleStatePatch(request, env) {
     } else {
       state.targets[patch.itemKey] = toNumber(patch.value);
     }
+  } else if (patch.type === "users") {
+    state.users = Array.isArray(patch.users) ? patch.users.map((user) => ({ ...createEmptyUser(), ...user })) : [];
   } else if (patch.type === "replace") {
     await writeState(env.DB, patch.state);
     return jsonResponse({ ok: true, state: normalizeState(patch.state) });
