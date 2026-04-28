@@ -262,7 +262,7 @@ main {
   min-width: 64px;
   height: 52px;
   padding: 4px 6px;
-  text-align: left;
+  text-align: center;
   font-size: 18px;
   font-weight: 400;
 }

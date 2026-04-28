@@ -502,7 +502,7 @@ function renderInputPage(name) {
   targetRow.className = "target-row";
 
   const targetLabelCell = document.createElement("th");
-  targetLabelCell.textContent = "目標数";
+  targetLabelCell.textContent = "目標";
   targetRow.appendChild(targetLabelCell);
 
   const targetsEditable = canEditTargets();
@@ -653,7 +653,7 @@ function renderSummaryPage() {
   targetRow.className = "target-row";
 
   const targetLabelCell = document.createElement("th");
-  targetLabelCell.textContent = "目標数";
+  targetLabelCell.textContent = "目標";
   targetRow.appendChild(targetLabelCell);
 
   const targetTotals = getTargetTotals();
