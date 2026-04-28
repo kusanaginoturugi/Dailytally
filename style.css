@@ -269,11 +269,23 @@ main {
 }
 
 .summary-meta-row th {
+  position: relative;
   height: 28px;
   padding: 2px 8px;
   text-align: center;
   font-size: 18px;
   font-weight: 400;
+}
+
+.summary-meta-label {
+  position: absolute;
+  left: 8px;
+  white-space: nowrap;
+}
+
+.summary-meta-value {
+  display: block;
+  text-align: center;
 }
 
 .summary-table thead tr:last-child th {
