@@ -372,6 +372,12 @@ function canEditTargets() {
   return toISODate(new Date()) === state.settings.weekStart;
 }
 
+function selectOnFocus(input) {
+  input.addEventListener("focus", () => {
+    input.select();
+  });
+}
+
 function createTargetInput(name, itemKey, currentValue) {
   const input = document.createElement("input");
   input.className = "target-input";
@@ -379,6 +385,7 @@ function createTargetInput(name, itemKey, currentValue) {
   input.inputMode = "numeric";
   input.pattern = "[0-9]*";
   input.value = currentValue === 0 ? "" : String(currentValue);
+  selectOnFocus(input);
   input.addEventListener("input", () => {
     input.value = input.value.replace(/\D/g, "");
     setTargetValue(name, itemKey, input.value);
@@ -527,6 +534,7 @@ function renderInputPage(name) {
       input.inputMode = "numeric";
       input.pattern = "[0-9]*";
       input.value = currentValue === 0 ? "" : String(currentValue);
+      selectOnFocus(input);
       input.addEventListener("input", () => {
         input.value = input.value.replace(/\D/g, "");
         setValue(name, date.id, item.key, input.value);
@@ -552,6 +560,7 @@ function renderInputPage(name) {
     input.inputMode = "numeric";
     input.pattern = "[0-9]*";
     input.value = currentValue === 0 ? "" : String(currentValue);
+    selectOnFocus(input);
     input.addEventListener("input", () => {
       input.value = input.value.replace(/\D/g, "");
       setValue(name, FINAL_ROW_ID, item.key, input.value);
