@@ -65,14 +65,28 @@ function parseISODate(iso) {
   return new Date(y, m - 1, d);
 }
 
+function addDaysISO(iso, days) {
+  const date = parseISODate(iso);
+  date.setDate(date.getDate() + days);
+  return toISODate(date);
+}
+
 function getWeekDates() {
   const start = parseISODate(state.settings.weekStart);
-  return Array.from({ length: 7 }, (_, i) => {
+  const end = parseISODate(state.settings.weekEnd);
+  const dates = [];
+  const current = new Date(start);
+  const maxDays = 366;
+
+  while (current <= end && dates.length < maxDays) {
     const date = new Date(start);
-    date.setDate(start.getDate() + i);
+    date.setDate(start.getDate() + dates.length);
     const label = `${date.getMonth() + 1}/${date.getDate()}`;
-    return { id: toISODate(date), label };
-  });
+    dates.push({ id: toISODate(date), label });
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
 }
 
 function formatShortDate(iso) {
@@ -105,6 +119,7 @@ function createDefaultState() {
   return {
     settings: {
       weekStart: "",
+      weekEnd: "",
       itemCount: 10,
       activeTab: "admin",
       seekerStart: "2026-04-28",
@@ -121,6 +136,7 @@ function normalizeStateShape(targetState) {
   if (!targetState.settings) {
     targetState.settings = {
       weekStart: toISODate(new Date()),
+      weekEnd: addDaysISO(toISODate(new Date()), 6),
       itemCount: 10,
       activeTab: "admin",
       seekerStart: "2026-04-28",
@@ -131,6 +147,14 @@ function normalizeStateShape(targetState) {
 
   if (!targetState.settings.weekStart) {
     targetState.settings.weekStart = toISODate(new Date());
+  }
+
+  if (!targetState.settings.weekEnd) {
+    targetState.settings.weekEnd = addDaysISO(targetState.settings.weekStart, 6);
+  }
+
+  if (targetState.settings.weekEnd < targetState.settings.weekStart) {
+    targetState.settings.weekEnd = targetState.settings.weekStart;
   }
 
   if (!targetState.settings.seekerStart) {
@@ -211,6 +235,7 @@ function loadLocalState() {
       const migrated = {
         settings: {
           weekStart: toISODate(new Date()),
+          weekEnd: addDaysISO(toISODate(new Date()), 6),
           itemCount: 10,
           activeTab: "admin",
           seekerStart: "2026-04-28",
@@ -233,6 +258,7 @@ function loadLocalState() {
     const loaded = {
       settings: raw.settings || {
         weekStart: "",
+        weekEnd: "",
         itemCount: 10,
         activeTab: "admin",
         seekerStart: "2026-04-28",
@@ -319,8 +345,8 @@ function saveState() {
 }
 
 function saveSettings() {
-  const { weekStart, itemCount, seekerStart, ceremonyName, schemaVersion } = state.settings;
-  return patchState({ type: "settings", settings: { weekStart, itemCount, seekerStart, ceremonyName, schemaVersion } });
+  const { weekStart, weekEnd, itemCount, seekerStart, ceremonyName, schemaVersion } = state.settings;
+  return patchState({ type: "settings", settings: { weekStart, weekEnd, itemCount, seekerStart, ceremonyName, schemaVersion } });
 }
 
 async function refreshStateFromDatabase() {
@@ -592,18 +618,33 @@ function renderAdminPage() {
   const template = document.getElementById("adminPageTemplate");
   const content = template.content.cloneNode(true);
   const weekStartInput = content.querySelector("#weekStart");
+  const weekEndInput = content.querySelector("#weekEnd");
   const itemCountInput = content.querySelector("#itemCount");
   const seekerStartInput = content.querySelector("#seekerStart");
   const ceremonyNumberInput = content.querySelector("#ceremonyNumber");
 
   weekStartInput.value = state.settings.weekStart;
+  weekEndInput.value = state.settings.weekEnd;
   itemCountInput.value = String(state.settings.itemCount);
   seekerStartInput.value = state.settings.seekerStart;
   ceremonyNumberInput.value = String(getCeremonyNumber());
 
   weekStartInput.addEventListener("change", () => {
     state.settings.weekStart = weekStartInput.value || toISODate(new Date());
+    if (!state.settings.weekEnd || state.settings.weekEnd < state.settings.weekStart) {
+      state.settings.weekEnd = state.settings.weekStart;
+      weekEndInput.value = state.settings.weekEnd;
+    }
     ceremonyNumberInput.value = String(getCeremonyNumber());
+    saveSettings();
+  });
+
+  weekEndInput.addEventListener("change", () => {
+    state.settings.weekEnd = weekEndInput.value || state.settings.weekStart;
+    if (state.settings.weekEnd < state.settings.weekStart) {
+      state.settings.weekEnd = state.settings.weekStart;
+      weekEndInput.value = state.settings.weekEnd;
+    }
     saveSettings();
   });
 

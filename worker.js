@@ -22,6 +22,12 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function addDaysISO(iso, days) {
+  const date = new Date(`${iso}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function createEmptyTargets() {
   return Object.fromEntries(DEFAULT_ITEMS.map((item) => [item, 0]));
 }
@@ -34,6 +40,7 @@ function createDefaultState() {
   return {
     settings: {
       weekStart: todayISO(),
+      weekEnd: addDaysISO(todayISO(), 6),
       itemCount: 10,
       activeTab: "admin",
       seekerStart: "2026-04-28",
@@ -56,6 +63,12 @@ function normalizeState(rawState) {
   state.settings.itemCount = normalizeItemCount(state.settings.itemCount, state.settings.schemaVersion);
   if (!state.settings.ceremonyName) {
     state.settings.ceremonyName = "八大明王護摩供";
+  }
+  if (!state.settings.weekEnd) {
+    state.settings.weekEnd = addDaysISO(state.settings.weekStart, 6);
+  }
+  if (state.settings.weekEnd < state.settings.weekStart) {
+    state.settings.weekEnd = state.settings.weekStart;
   }
   state.settings.schemaVersion = SETTINGS_SCHEMA_VERSION;
 
