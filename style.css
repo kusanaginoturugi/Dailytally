@@ -158,6 +158,11 @@ main {
   font-weight: 700;
 }
 
+.input-page .data-table tfoot th,
+.input-page .data-table tfoot td {
+  background: #ffffff;
+}
+
 .summary-page {
   color: #000000;
 }
