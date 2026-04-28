@@ -463,7 +463,13 @@ function fillSummaryHeaderRow(rowEl) {
 
   getActiveItems().forEach((item) => {
     const th = document.createElement("th");
-    th.textContent = item.key === "seekers" ? `得道者数(${formatShortDate(state.settings.seekerStart)}～)` : item.summaryLabel || item.label;
+    if (item.key === "seekers") {
+      th.textContent = `得道者数(${formatShortDate(state.settings.seekerStart)}～)`;
+    } else if (item.key === "water") {
+      th.append("御神水・泉・", document.createElement("br"), "龍華水等");
+    } else {
+      th.textContent = item.summaryLabel || item.label;
+    }
     rowEl.appendChild(th);
   });
 }
