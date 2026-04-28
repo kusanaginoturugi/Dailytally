@@ -8,8 +8,7 @@
   </head>
   <body>
     <header>
-      <h1>毎日集計</h1>
-      <p>9つの伝道会が毎日入力し、次ページで全体合計を確認できます。</p>
+      <h1 id="appTitle">毎日集計</h1>
     </header>
 
     <main>
@@ -23,7 +22,6 @@
     <template id="inputPageTemplate">
       <section class="input-page">
         <h2 class="page-title"></h2>
-        <p class="page-description">入力数値は自動保存されます。</p>
         <div class="table-wrap">
           <table class="data-table">
             <thead>
@@ -37,7 +35,6 @@
 
     <template id="adminPageTemplate">
       <section class="admin-page">
-        <h2 class="page-title">管理ページ</h2>
         <div class="settings" aria-label="表示設定">
           <label>
             週の開始日
@@ -45,11 +42,7 @@
           </label>
           <label>
             項目数
-            <select id="itemCount">
-              <option value="7">7項目</option>
-              <option value="8">8項目</option>
-              <option value="9">9項目</option>
-            </select>
+            <input id="itemCount" type="number" min="1" max="11" step="1" />
           </label>
           <label>
             得道者数開始日

@@ -8,10 +8,15 @@ const DEFAULT_ITEMS = [
   "fuda",
   "zaitama",
   "symbols",
+  "water",
+  "extra1",
 ];
 
 const FELLOWSHIP_NAMES = ["大江戸", "お台場", "羽田", "かながわ", "富士山", "駿天", "埼玉", "千葉", "山梨"];
 const STATE_ID = "main";
+const SETTINGS_SCHEMA_VERSION = 2;
+const MIN_ITEM_COUNT = 1;
+const MAX_ITEM_COUNT = DEFAULT_ITEMS.length;
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -21,16 +26,23 @@ function createEmptyTargets() {
   return Object.fromEntries(DEFAULT_ITEMS.map((item) => [item, 0]));
 }
 
+function createEmptyFellowshipTargets() {
+  return Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, createEmptyTargets()]));
+}
+
 function createDefaultState() {
   return {
     settings: {
       weekStart: todayISO(),
-      itemCount: 9,
+      itemCount: 10,
       activeTab: "admin",
       seekerStart: "2026-04-28",
+      ceremonyName: "八大明王護摩供",
+      schemaVersion: SETTINGS_SCHEMA_VERSION,
     },
     fellowships: Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, {}])),
     targets: createEmptyTargets(),
+    fellowshipTargets: createEmptyFellowshipTargets(),
   };
 }
 
@@ -41,12 +53,25 @@ function normalizeState(rawState) {
     ...createDefaultState().settings,
     ...(state.settings || {}),
   };
+  state.settings.itemCount = normalizeItemCount(state.settings.itemCount, state.settings.schemaVersion);
+  if (!state.settings.ceremonyName) {
+    state.settings.ceremonyName = "八大明王護摩供";
+  }
+  state.settings.schemaVersion = SETTINGS_SCHEMA_VERSION;
 
   state.fellowships = state.fellowships || {};
+  state.fellowshipTargets = state.fellowshipTargets || {};
   FELLOWSHIP_NAMES.forEach((name) => {
     if (!state.fellowships[name]) {
       state.fellowships[name] = {};
     }
+    if (!state.fellowshipTargets[name]) {
+      state.fellowshipTargets[name] = { ...(state.targets || createEmptyTargets()) };
+    }
+    state.fellowshipTargets[name] = {
+      ...createEmptyTargets(),
+      ...state.fellowshipTargets[name],
+    };
   });
 
   state.targets = {
@@ -55,6 +80,17 @@ function normalizeState(rawState) {
   };
 
   return state;
+}
+
+function normalizeItemCount(value, schemaVersion) {
+  const itemCount = Number(value);
+  if (!schemaVersion && itemCount === 9) {
+    return 10;
+  }
+  if (!Number.isInteger(itemCount)) {
+    return 10;
+  }
+  return Math.min(MAX_ITEM_COUNT, Math.max(MIN_ITEM_COUNT, itemCount));
 }
 
 function jsonResponse(body, init = {}) {
@@ -105,7 +141,14 @@ async function handleStatePatch(request, env) {
     }
     state.fellowships[fellowship][dateId][itemKey] = toNumber(patch.value);
   } else if (patch.type === "target") {
-    state.targets[patch.itemKey] = toNumber(patch.value);
+    if (patch.fellowship) {
+      if (!state.fellowshipTargets[patch.fellowship]) {
+        state.fellowshipTargets[patch.fellowship] = createEmptyTargets();
+      }
+      state.fellowshipTargets[patch.fellowship][patch.itemKey] = toNumber(patch.value);
+    } else {
+      state.targets[patch.itemKey] = toNumber(patch.value);
+    }
   } else if (patch.type === "replace") {
     await writeState(env.DB, patch.state);
     return jsonResponse({ ok: true, state: normalizeState(patch.state) });
