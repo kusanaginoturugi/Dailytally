@@ -1,17 +1,165 @@
 const fellowshipNames = ["大江戸", "お台場", "羽田", "かながわ", "富士山", "駿天", "埼玉", "千葉", "山梨"];
-const ITEMS = [
-  { key: "seekers", label: "得道者数", summaryLabel: "得道者数(4/28～)", unit: "人" },
-  { key: "tenchi", label: "天地免劫護摩木", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
-  { key: "goma", label: "各種護摩木", summaryLabel: "この護摩供に向けての各種護摩木", unit: "本" },
-  { key: "nyoi", label: "如意棒", summaryLabel: "八大明王如意棒", unit: "本" },
-  { key: "sanki", label: "三期滅劫霊木", summaryLabel: "三期滅劫之霊木", unit: "本" },
-  { key: "ryuge", label: "三會龍華之御柱", summaryLabel: "三會龍華之御柱", unit: "本" },
-  { key: "fuda", label: "八大明王札", summaryLabel: "八大明王札", unit: "体" },
-  { key: "zaitama", label: "明王招財玉", summaryLabel: "明王招財玉", unit: "組" },
-  { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
-  { key: "water", label: "御神水・泉・龍華水等", summaryLabel: "御神水・泉・龍華水等", unit: "ケース" },
-  { key: "extra1", label: "追加項目", summaryLabel: "追加項目", unit: "" },
+const CEREMONY_CONFIGS = [
+  {
+    id: "hachidai-myo-o",
+    name: "八大明王護摩供",
+    nextNumber: 31,
+    seekerStart: "2026-04-28",
+    items: [
+      { key: "seekers", label: "得道者数", summaryLabel: "得道者数", unit: "人" },
+      { key: "tenchi", label: "天地免劫護摩木", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
+      { key: "goma", label: "各種護摩木", summaryLabel: "この護摩供に向けての各種護摩木", unit: "本" },
+      { key: "nyoi", label: "如意棒", summaryLabel: "八大明王如意棒", unit: "本" },
+      { key: "sanki", label: "三期滅劫霊木", summaryLabel: "三期滅劫之霊木", unit: "本" },
+      { key: "ryuge", label: "三會龍華之御柱", summaryLabel: "三會龍華之御柱", unit: "本" },
+      { key: "fuda", label: "八大明王札", summaryLabel: "八大明王札", unit: "体" },
+      { key: "zaitama", label: "明王招財玉", summaryLabel: "明王招財玉", unit: "組" },
+      { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
+      { key: "water", label: "御神水・泉・龍華水等", summaryLabel: "御神水・泉・龍華水等", unit: "ケース" },
+      { key: "extra1", label: "追加項目", summaryLabel: "追加項目", unit: "" },
+    ],
+  },
+  {
+    id: "daigen-chiku",
+    name: "大元地空護摩供",
+    nextNumber: 25,
+    seekerStart: "",
+    items: [
+      { key: "seekers", label: "得道者数", summaryLabel: "得道者数", unit: "人" },
+      { key: "tenchi", label: "天地免劫護摩木", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
+      { key: "goma", label: "各種護摩木", summaryLabel: "この護摩供に向けての各種護摩木", unit: "本" },
+      { key: "sanki_proxy", label: "三期滅劫之霊木代理奉納", summaryLabel: "三期滅劫之霊木代理奉納", unit: "本" },
+      { key: "ryuge_proxy", label: "三會龍華之御柱代理奉納", summaryLabel: "三會龍華之御柱代理奉納", unit: "本" },
+      { key: "senju", label: "千手の御手", summaryLabel: "千手の御手", unit: "枚" },
+      { key: "daigen_fuda", label: "大元地空札", summaryLabel: "大元地空札", unit: "体" },
+      { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
+      { key: "water", label: "御神水他・龍華水", summaryLabel: "御神水他・龍華水", unit: "箱" },
+    ],
+  },
+  {
+    id: "jizo-sonno",
+    name: "地蔵尊王護摩供",
+    nextNumber: 30,
+    seekerStart: "",
+    items: [
+      { key: "seekers", label: "得道者数", summaryLabel: "得道者数", unit: "人" },
+      { key: "tenchi", label: "天地免劫護摩木", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
+      { key: "goma", label: "各種護摩木", summaryLabel: "この護摩供に向けての各種護摩木", unit: "本" },
+      { key: "sanki", label: "三期滅劫之霊木", summaryLabel: "三期滅劫之霊木", unit: "本" },
+      { key: "ryuge", label: "三會龍華之御柱", summaryLabel: "三會龍華之御柱", unit: "本" },
+      { key: "mizuko", label: "水子萬灯會", summaryLabel: "水子萬灯會", unit: "本" },
+      { key: "jizo_fuda", label: "地蔵古佛札", summaryLabel: "地蔵古佛札", unit: "体" },
+      { key: "mayudama", label: "まゆ玉", summaryLabel: "まゆ玉", unit: "枚" },
+      { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
+      { key: "water", label: "御神水・命泉・泉・龍華水", summaryLabel: "御神水・命泉・泉・龍華水", unit: "ケース" },
+    ],
+  },
+  {
+    id: "segaki-kuyo",
+    name: "施餓鬼供養護摩供",
+    nextNumber: 31,
+    seekerStart: "",
+    items: [
+      { key: "seekers", label: "得道者数", summaryLabel: "得道者数", unit: "人" },
+      { key: "tenchi", label: "天地免劫護摩木", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
+      { key: "goma", label: "各種護摩木", summaryLabel: "この護摩供に向けての各種護摩木", unit: "本" },
+      { key: "hokuto_segaki", label: "北斗施餓鬼供養護摩木代理奉納", summaryLabel: "北斗施餓鬼供養護摩木代理奉納", unit: "本" },
+      { key: "sanki_proxy", label: "三期滅劫之霊木代理奉納", summaryLabel: "三期滅劫之霊木代理奉納", unit: "本" },
+      { key: "ryuge_proxy", label: "三會龍華之御柱代理奉納", summaryLabel: "三會龍華之御柱代理奉納", unit: "本" },
+      { key: "segaki_ita", label: "施餓鬼板", summaryLabel: "施餓鬼板", unit: "枚" },
+      { key: "symbols", label: "各種符", summaryLabel: "各種符(施餓鬼供養符も含む)", unit: "枚" },
+      { key: "water", label: "御神水・命泉・泉・龍華水", summaryLabel: "御神水・命泉・泉・龍華水", unit: "箱" },
+    ],
+  },
+  {
+    id: "hokuto-chinatsu",
+    name: "北斗鎮圧護摩供",
+    nextNumber: 30,
+    seekerStart: "",
+    items: [
+      { key: "seekers", label: "得道者数", summaryLabel: "得道者数", unit: "人" },
+      { key: "tenchi", label: "天地免劫護摩木", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
+      { key: "goma", label: "各種護摩木", summaryLabel: "この護摩供に向けての各種護摩木", unit: "本" },
+      { key: "sanki_proxy", label: "三期滅劫之霊木代理奉納", summaryLabel: "三期滅劫之霊木代理奉納", unit: "本" },
+      { key: "ryuge_proxy", label: "三會龍華之御柱代理奉納", summaryLabel: "三會龍華之御柱代理奉納", unit: "本" },
+      { key: "inau", label: "イナウ・なで玄武・北斗鎮圧札", summaryLabel: "イナウ・なで玄武・北斗鎮圧札", unit: "ケ" },
+      { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
+      { key: "water", label: "御神水・命泉・泉・龍華水", summaryLabel: "御神水・命泉・泉・龍華水", unit: "箱" },
+    ],
+  },
+  {
+    id: "rokuson-hoju",
+    name: "禄存宝珠護摩供",
+    nextNumber: 40,
+    seekerStart: "",
+    items: [
+      { key: "seekers", label: "得道者数", summaryLabel: "得道者数", unit: "人" },
+      { key: "tenchi", label: "天地免劫護摩木", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
+      { key: "goma", label: "各種護摩木", summaryLabel: "この護摩供に向けての各種護摩木", unit: "本" },
+      { key: "sanki_proxy", label: "三期滅劫之霊木代理奉納", summaryLabel: "三期滅劫之霊木代理奉納", unit: "本" },
+      { key: "ryuge_proxy", label: "三會龍華之御柱代理奉納", summaryLabel: "三會龍華之御柱代理奉納", unit: "本" },
+      { key: "senju", label: "千手の御手", summaryLabel: "千手の御手", unit: "枚" },
+      { key: "junishinsho", label: "十二神将板・龍樹滅業棒", summaryLabel: "十二神将板・龍樹滅業棒", unit: "本" },
+      { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
+      { key: "water", label: "御神水・命泉・泉・龍華水・禄存五聖杯", summaryLabel: "御神水・命泉・泉・龍華水・禄存五聖杯", unit: "箱" },
+    ],
+  },
+  {
+    id: "chosei-minami",
+    name: "長生南十字星護摩供",
+    nextNumber: 30,
+    seekerStart: "",
+    items: [
+      { key: "seekers", label: "得道者数", summaryLabel: "得道者数", unit: "人" },
+      { key: "tenchi", label: "天地免劫護摩木", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
+      { key: "goma", label: "各種護摩木", summaryLabel: "この護摩供に向けての各種護摩木", unit: "本" },
+      { key: "sanki_proxy", label: "三期滅劫之霊木代理奉納", summaryLabel: "三期滅劫之霊木代理奉納", unit: "本" },
+      { key: "ryuge_proxy", label: "三會龍華之御柱代理奉納", summaryLabel: "三會龍華之御柱代理奉納", unit: "本" },
+      { key: "shisho", label: "四生解消十字", summaryLabel: "四生解消十字", unit: "枚" },
+      { key: "nankyoku", label: "南極寿星札", summaryLabel: "南極寿星札", unit: "枚" },
+      { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
+      { key: "water", label: "御神水他・龍華水", summaryLabel: "御神水他・龍華水", unit: "箱" },
+    ],
+  },
+  {
+    id: "myozen-enma",
+    name: "妙善閻魔天王護摩供",
+    nextNumber: 24,
+    seekerStart: "",
+    items: [
+      { key: "seekers", label: "得道者数", summaryLabel: "得道者数", unit: "人" },
+      { key: "tenchi", label: "天地免劫護摩木", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
+      { key: "goma", label: "各種護摩木", summaryLabel: "この護摩供に向けての各種護摩木", unit: "本" },
+      { key: "jigoku", label: "地獄曼荼羅會代理奉納", summaryLabel: "地獄曼荼羅會代理奉納", unit: "本" },
+      { key: "kokujyo", label: "黒縄供養紐・水子萬灯會代理奉納", summaryLabel: "黒縄供養紐・水子萬灯會代理奉納", unit: "本" },
+      { key: "sanki_proxy", label: "三期滅劫之霊木代理奉納", summaryLabel: "三期滅劫之霊木代理奉納", unit: "本" },
+      { key: "ryuge_proxy", label: "三會龍華之御柱代理奉納", summaryLabel: "三會龍華之御柱代理奉納", unit: "本" },
+      { key: "kagami", label: "鏡符・五雷懺悔鏡代理奉納", summaryLabel: "鏡符・五雷懺悔鏡代理奉納", unit: "枚" },
+      { key: "myozen_fuda", label: "妙善閻魔天王札", summaryLabel: "妙善閻魔天王札", unit: "体" },
+      { key: "symbols", label: "各種符", summaryLabel: "各種符(大國陰陽符含)", unit: "枚" },
+      { key: "water", label: "御神水・命泉・泉・龍華水等", summaryLabel: "御神水・命泉・泉・龍華水等", unit: "箱" },
+    ],
+  },
+  {
+    id: "chinkon-shikai",
+    name: "鎮魂四海龍王護摩供",
+    nextNumber: 30,
+    seekerStart: "",
+    items: [
+      { key: "seekers", label: "得道者数", summaryLabel: "得道者数", unit: "人" },
+      { key: "tenchi", label: "天地免劫護摩木", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
+      { key: "goma", label: "各種護摩木", summaryLabel: "この護摩供に向けての各種護摩木(媽祖救航灯代理奉納を除く)", unit: "本" },
+      { key: "maso", label: "媽祖救航灯代理奉納", summaryLabel: "媽祖救航灯代理奉納", unit: "本" },
+      { key: "zenigata", label: "銭型代理奉納", summaryLabel: "銭型代理奉納", unit: "組" },
+      { key: "ryuge_proxy", label: "三會龍華之御柱代理奉納", summaryLabel: "三會龍華之御柱代理奉納", unit: "本" },
+      { key: "shikai_fuda", label: "四海龍王札", summaryLabel: "四海龍王札", unit: "枚" },
+      { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
+      { key: "water", label: "御神水・命泉・泉・龍華水", summaryLabel: "御神水・命泉・泉・龍華水", unit: "箱" },
+    ],
+  },
 ];
+const DEFAULT_CEREMONY_ID = CEREMONY_CONFIGS[0].id;
+const ITEMS = Array.from(new Map(CEREMONY_CONFIGS.flatMap((ceremony) => ceremony.items).map((item) => [item.key, item])).values());
 const MIN_ITEM_COUNT = 1;
 const MAX_ITEM_COUNT = ITEMS.length;
 
@@ -37,10 +185,6 @@ init();
 async function init() {
   [state, currentUser] = await Promise.all([loadState(), loadCurrentUser()]);
   activeTab = getSavedActiveTab();
-
-  if (!state.settings.weekStart) {
-    state.settings.weekStart = toISODate(new Date());
-  }
 
   setInterval(refreshStateFromDatabase, REFRESH_INTERVAL_MS);
   render();
@@ -96,8 +240,13 @@ function addDaysISO(iso, days) {
 }
 
 function getWeekDates() {
-  const start = parseISODate(state.settings.weekStart);
-  const end = parseISODate(state.settings.weekEnd);
+  const ceremonyData = getActiveCeremonyData();
+  if (!ceremonyData.weekStart || !ceremonyData.weekEnd) {
+    return [];
+  }
+
+  const start = parseISODate(ceremonyData.weekStart);
+  const end = parseISODate(ceremonyData.weekEnd);
   const dates = [];
   const current = new Date(start);
   const maxDays = 366;
@@ -114,17 +263,49 @@ function getWeekDates() {
 }
 
 function formatShortDate(iso) {
+  if (!iso) {
+    return "";
+  }
   const date = parseISODate(iso);
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 function getCeremonyNumber() {
-  const year = parseISODate(state.settings.weekStart || toISODate(new Date())).getFullYear();
-  return year - 1995;
+  return getActiveCeremonyConfig().nextNumber;
 }
 
 function getActiveItems() {
-  return ITEMS.slice(0, state.settings.itemCount);
+  return getActiveCeremonyConfig().items;
+}
+
+function getActiveCeremonyConfig() {
+  return CEREMONY_CONFIGS.find((ceremony) => ceremony.id === state.settings.ceremonyId) || CEREMONY_CONFIGS[0];
+}
+
+function getCeremonyConfig(ceremonyId) {
+  return CEREMONY_CONFIGS.find((ceremony) => ceremony.id === ceremonyId) || CEREMONY_CONFIGS[0];
+}
+
+function createEmptyCeremonyData(ceremonyConfig = getActiveCeremonyConfig()) {
+  return {
+    weekStart: "",
+    weekEnd: "",
+    seekerStart: ceremonyConfig.seekerStart || "",
+    fellowships: Object.fromEntries(fellowshipNames.map((name) => [name, {}])),
+    targets: createEmptyTargets(),
+    fellowshipTargets: createEmptyFellowshipTargets(),
+  };
+}
+
+function getActiveCeremonyData() {
+  if (!state.ceremonyData) {
+    state.ceremonyData = {};
+  }
+  const ceremonyId = getActiveCeremonyConfig().id;
+  if (!state.ceremonyData[ceremonyId]) {
+    state.ceremonyData[ceremonyId] = createEmptyCeremonyData(getActiveCeremonyConfig());
+  }
+  return state.ceremonyData[ceremonyId];
 }
 
 function createEmptyDay() {
@@ -157,11 +338,13 @@ function createDefaultState() {
       activeTab: "admin",
       seekerStart: "2026-04-28",
       ceremonyName: "八大明王護摩供",
+      ceremonyId: DEFAULT_CEREMONY_ID,
       schemaVersion: SETTINGS_SCHEMA_VERSION,
     },
     fellowships: Object.fromEntries(fellowshipNames.map((name) => [name, {}])),
     targets: createEmptyTargets(),
     fellowshipTargets: createEmptyFellowshipTargets(),
+    ceremonyData: {},
     users: [],
   };
 }
@@ -175,8 +358,13 @@ function normalizeStateShape(targetState) {
       activeTab: "admin",
       seekerStart: "2026-04-28",
       ceremonyName: "八大明王護摩供",
+      ceremonyId: DEFAULT_CEREMONY_ID,
       schemaVersion: SETTINGS_SCHEMA_VERSION,
     };
+  }
+
+  if (!CEREMONY_CONFIGS.some((ceremony) => ceremony.id === targetState.settings.ceremonyId)) {
+    targetState.settings.ceremonyId = DEFAULT_CEREMONY_ID;
   }
 
   if (!targetState.settings.weekStart) {
@@ -205,6 +393,19 @@ function normalizeStateShape(targetState) {
   targetState.users = Array.isArray(targetState.users)
     ? targetState.users.map((user) => ({ ...createEmptyUser(), ...user }))
     : [];
+
+  if (!targetState.ceremonyData) {
+    targetState.ceremonyData = {
+      [DEFAULT_CEREMONY_ID]: {
+        weekStart: targetState.settings.weekStart,
+        weekEnd: targetState.settings.weekEnd,
+        seekerStart: targetState.settings.seekerStart,
+        fellowships: targetState.fellowships || {},
+        targets: targetState.targets || createEmptyTargets(),
+        fellowshipTargets: targetState.fellowshipTargets || {},
+      },
+    };
+  }
 
   if (!targetState.fellowships) {
     targetState.fellowships = {};
@@ -243,6 +444,36 @@ function normalizeStateShape(targetState) {
     ...targetState.targets,
   };
 
+  CEREMONY_CONFIGS.forEach((ceremony) => {
+    if (!targetState.ceremonyData[ceremony.id]) {
+      targetState.ceremonyData[ceremony.id] = createEmptyCeremonyData(ceremony);
+    }
+
+    const ceremonyData = targetState.ceremonyData[ceremony.id];
+    ceremonyData.weekStart = ceremonyData.weekStart || "";
+    ceremonyData.weekEnd = ceremonyData.weekEnd || "";
+    ceremonyData.seekerStart = ceremonyData.seekerStart ?? (ceremony.seekerStart || "");
+    ceremonyData.fellowships = ceremonyData.fellowships || {};
+    ceremonyData.targets = {
+      ...createEmptyTargets(),
+      ...(ceremonyData.targets || {}),
+    };
+    ceremonyData.fellowshipTargets = ceremonyData.fellowshipTargets || {};
+
+    fellowshipNames.forEach((name) => {
+      if (!ceremonyData.fellowships[name]) {
+        ceremonyData.fellowships[name] = {};
+      }
+      if (!ceremonyData.fellowshipTargets[name]) {
+        ceremonyData.fellowshipTargets[name] = { ...ceremonyData.targets };
+      }
+      ceremonyData.fellowshipTargets[name] = {
+        ...createEmptyTargets(),
+        ...ceremonyData.fellowshipTargets[name],
+      };
+    });
+  });
+
   return targetState;
 }
 
@@ -277,11 +508,13 @@ function loadLocalState() {
           activeTab: "admin",
           seekerStart: "2026-04-28",
           ceremonyName: "八大明王護摩供",
+          ceremonyId: DEFAULT_CEREMONY_ID,
           schemaVersion: SETTINGS_SCHEMA_VERSION,
         },
         fellowships: legacyParsed,
         targets: createEmptyTargets(),
         fellowshipTargets: createEmptyFellowshipTargets(),
+        ceremonyData: {},
         users: [],
       };
       return migrated;
@@ -301,11 +534,13 @@ function loadLocalState() {
         activeTab: "admin",
         seekerStart: "2026-04-28",
         ceremonyName: "八大明王護摩供",
+        ceremonyId: DEFAULT_CEREMONY_ID,
         schemaVersion: SETTINGS_SCHEMA_VERSION,
       },
       fellowships: raw.fellowships || {},
       targets: raw.targets || createEmptyTargets(),
       fellowshipTargets: raw.fellowshipTargets || createEmptyFellowshipTargets(),
+      ceremonyData: raw.ceremonyData || null,
       users: raw.users || [],
     };
     return normalizeStateShape(loaded);
@@ -350,18 +585,29 @@ function hasLocalData(localState) {
 }
 
 function hasSavedValues(currentState) {
-  return Object.values(currentState.fellowships || {}).some((days) =>
+  const hasLegacyValues = Object.values(currentState.fellowships || {}).some((days) =>
     Object.values(days || {}).some((day) => Object.values(day || {}).some((value) => Number(value) > 0)),
   );
+  const hasCeremonyValues = Object.values(currentState.ceremonyData || {}).some((ceremonyData) =>
+    Object.values(ceremonyData?.fellowships || {}).some((days) =>
+      Object.values(days || {}).some((day) => Object.values(day || {}).some((value) => Number(value) > 0)),
+    ),
+  );
+  return hasLegacyValues || hasCeremonyValues;
 }
 
 function hasTargetValues(currentState) {
-  return (
+  const hasLegacyTargets =
     Object.values(currentState.targets || {}).some((value) => Number(value) > 0) ||
     Object.values(currentState.fellowshipTargets || {}).some((targets) =>
       Object.values(targets || {}).some((value) => Number(value) > 0),
-    )
+    );
+  const hasCeremonyTargets = Object.values(currentState.ceremonyData || {}).some((ceremonyData) =>
+    Object.values(ceremonyData?.fellowshipTargets || {}).some((targets) =>
+      Object.values(targets || {}).some((value) => Number(value) > 0),
+    ),
   );
+  return hasLegacyTargets || hasCeremonyTargets;
 }
 
 function hasUserValues(currentState) {
@@ -390,8 +636,16 @@ function saveState() {
 }
 
 function saveSettings() {
-  const { weekStart, weekEnd, itemCount, seekerStart, ceremonyName, schemaVersion } = state.settings;
-  return patchState({ type: "settings", settings: { weekStart, weekEnd, itemCount, seekerStart, ceremonyName, schemaVersion } });
+  return patchState({
+    type: "settings",
+    settings: { ceremonyId: state.settings.ceremonyId, schemaVersion: SETTINGS_SCHEMA_VERSION },
+    ceremonyId: getActiveCeremonyConfig().id,
+    ceremonySettings: {
+      weekStart: getActiveCeremonyData().weekStart,
+      weekEnd: getActiveCeremonyData().weekEnd,
+      seekerStart: getActiveCeremonyData().seekerStart,
+    },
+  });
 }
 
 async function refreshStateFromDatabase() {
@@ -413,38 +667,40 @@ async function refreshStateFromDatabase() {
 }
 
 function getValue(name, dateId, itemKey) {
-  const day = state.fellowships[name][dateId] || createEmptyDay();
+  const day = getActiveCeremonyData().fellowships[name][dateId] || createEmptyDay();
   return Number(day[itemKey]) || 0;
 }
 
 function getFinalValue(name, itemKey) {
-  return getValue(name, state.settings.weekEnd, itemKey) || getValue(name, FINAL_ROW_ID, itemKey);
+  return getValue(name, getActiveCeremonyData().weekEnd, itemKey) || getValue(name, FINAL_ROW_ID, itemKey);
 }
 
 function setValue(name, dateId, itemKey, value) {
-  if (!state.fellowships[name][dateId]) {
-    state.fellowships[name][dateId] = createEmptyDay();
+  const ceremonyData = getActiveCeremonyData();
+  if (!ceremonyData.fellowships[name][dateId]) {
+    ceremonyData.fellowships[name][dateId] = createEmptyDay();
   }
   const normalizedValue = Math.max(0, Number(value) || 0);
-  state.fellowships[name][dateId][itemKey] = normalizedValue;
-  patchState({ type: "value", fellowship: name, dateId, itemKey, value: normalizedValue });
+  ceremonyData.fellowships[name][dateId][itemKey] = normalizedValue;
+  patchState({ type: "value", ceremonyId: getActiveCeremonyConfig().id, fellowship: name, dateId, itemKey, value: normalizedValue });
 }
 
 function getTargetValue(name, itemKey) {
-  return Number(state.fellowshipTargets[name]?.[itemKey]) || 0;
+  return Number(getActiveCeremonyData().fellowshipTargets[name]?.[itemKey]) || 0;
 }
 
 function setTargetValue(name, itemKey, value) {
   const normalizedValue = Math.max(0, Number(value) || 0);
-  if (!state.fellowshipTargets[name]) {
-    state.fellowshipTargets[name] = createEmptyTargets();
+  const ceremonyData = getActiveCeremonyData();
+  if (!ceremonyData.fellowshipTargets[name]) {
+    ceremonyData.fellowshipTargets[name] = createEmptyTargets();
   }
-  state.fellowshipTargets[name][itemKey] = normalizedValue;
-  patchState({ type: "target", fellowship: name, itemKey, value: normalizedValue });
+  ceremonyData.fellowshipTargets[name][itemKey] = normalizedValue;
+  patchState({ type: "target", ceremonyId: getActiveCeremonyConfig().id, fellowship: name, itemKey, value: normalizedValue });
 }
 
 function canEditTargets() {
-  return toISODate(new Date()) === state.settings.weekStart;
+  return getActiveCeremonyData().weekStart && toISODate(new Date()) === getActiveCeremonyData().weekStart;
 }
 
 function canEditDate(dateId) {
@@ -556,7 +812,8 @@ function fillHeaderRow(rowEl) {
   getActiveItems().forEach((item) => {
     const th = document.createElement("th");
     if (item.key === "seekers") {
-      th.append("得道者数", document.createElement("br"), `(${formatShortDate(state.settings.seekerStart)}～)`);
+      const seekerStart = getActiveCeremonyData().seekerStart;
+      th.append("得道者数", document.createElement("br"), seekerStart ? `(${formatShortDate(seekerStart)}～)` : "");
     } else if (item.key === "tenchi") {
       th.append("天地免劫", document.createElement("br"), "護摩木");
     } else if (item.key === "ryuge") {
@@ -575,12 +832,13 @@ function fillSummaryHeaderRow(rowEl) {
   getActiveItems().forEach((item) => {
     const th = document.createElement("th");
     if (item.key === "seekers") {
-      th.textContent = `得道者数(${formatShortDate(state.settings.seekerStart)}～)`;
+      const seekerStart = getActiveCeremonyData().seekerStart;
+      th.textContent = seekerStart ? `得道者数(${formatShortDate(seekerStart)}～)` : "得道者数";
     } else if (item.key === "tenchi") {
       th.append("この護摩供に", document.createElement("br"), "向けての", document.createElement("br"), "天地免劫護摩木");
     } else if (item.key === "goma") {
       th.append("この護摩供に", document.createElement("br"), "向けての", document.createElement("br"), "各種護摩木");
-    } else if (item.key === "water") {
+    } else if (item.key === "water" && item.summaryLabel === "御神水・泉・龍華水等") {
       th.append("御神水・泉・", document.createElement("br"), "龍華水等");
     } else {
       th.textContent = item.summaryLabel || item.label;
@@ -592,7 +850,7 @@ function fillSummaryHeaderRow(rowEl) {
 function renderInputPage(name) {
   const template = document.getElementById("inputPageTemplate");
   const content = template.content.cloneNode(true);
-  content.querySelector(".page-title").textContent = `第${getCeremonyNumber()}回八大明王護摩供　${name}`;
+  content.querySelector(".page-title").textContent = `第${getCeremonyNumber()}回${getActiveCeremonyConfig().name}　${name}`;
 
   fillHeaderRow(content.querySelector("#inputHeaderRow"));
   const tbody = content.querySelector("tbody");
@@ -664,7 +922,7 @@ function renderInputPage(name) {
     const td = document.createElement("td");
     const currentValue = getFinalValue(name, item.key);
 
-    if (canEditDateForFellowship(name, state.settings.weekEnd)) {
+    if (canEditDateForFellowship(name, getActiveCeremonyData().weekEnd)) {
       const input = document.createElement("input");
       input.type = "text";
       input.inputMode = "numeric";
@@ -673,7 +931,7 @@ function renderInputPage(name) {
       selectOnFocus(input);
       input.addEventListener("input", () => {
         input.value = input.value.replace(/\D/g, "");
-        setValue(name, state.settings.weekEnd, item.key, input.value);
+        setValue(name, getActiveCeremonyData().weekEnd, item.key, input.value);
       });
       td.appendChild(input);
       appendUnit(td, item.unit);
@@ -691,45 +949,58 @@ function renderInputPage(name) {
 function renderAdminPage() {
   const template = document.getElementById("adminPageTemplate");
   const content = template.content.cloneNode(true);
+  const ceremonySelect = content.querySelector("#ceremonySelect");
   const weekStartInput = content.querySelector("#weekStart");
   const weekEndInput = content.querySelector("#weekEnd");
   const itemCountInput = content.querySelector("#itemCount");
   const seekerStartInput = content.querySelector("#seekerStart");
   const ceremonyNumberInput = content.querySelector("#ceremonyNumber");
+  const ceremonyData = getActiveCeremonyData();
 
-  weekStartInput.value = state.settings.weekStart;
-  weekEndInput.value = state.settings.weekEnd;
-  itemCountInput.value = String(state.settings.itemCount);
-  seekerStartInput.value = state.settings.seekerStart;
+  CEREMONY_CONFIGS.forEach((ceremony) => {
+    const option = document.createElement("option");
+    option.value = ceremony.id;
+    option.textContent = ceremony.name;
+    ceremonySelect.appendChild(option);
+  });
+
+  ceremonySelect.value = getActiveCeremonyConfig().id;
+  weekStartInput.value = ceremonyData.weekStart;
+  weekEndInput.value = ceremonyData.weekEnd;
+  itemCountInput.value = String(getActiveItems().length);
+  itemCountInput.disabled = true;
+  seekerStartInput.value = ceremonyData.seekerStart;
   ceremonyNumberInput.value = String(getCeremonyNumber());
 
+  ceremonySelect.addEventListener("change", () => {
+    state.settings.ceremonyId = ceremonySelect.value;
+    saveSettings();
+    render();
+  });
+
   weekStartInput.addEventListener("change", () => {
-    state.settings.weekStart = weekStartInput.value || toISODate(new Date());
-    if (!state.settings.weekEnd || state.settings.weekEnd < state.settings.weekStart) {
-      state.settings.weekEnd = state.settings.weekStart;
-      weekEndInput.value = state.settings.weekEnd;
+    const activeData = getActiveCeremonyData();
+    activeData.weekStart = weekStartInput.value || "";
+    if (activeData.weekStart && (!activeData.weekEnd || activeData.weekEnd < activeData.weekStart)) {
+      activeData.weekEnd = activeData.weekStart;
+      weekEndInput.value = activeData.weekEnd;
     }
     ceremonyNumberInput.value = String(getCeremonyNumber());
     saveSettings();
   });
 
   weekEndInput.addEventListener("change", () => {
-    state.settings.weekEnd = weekEndInput.value || state.settings.weekStart;
-    if (state.settings.weekEnd < state.settings.weekStart) {
-      state.settings.weekEnd = state.settings.weekStart;
-      weekEndInput.value = state.settings.weekEnd;
+    const activeData = getActiveCeremonyData();
+    activeData.weekEnd = weekEndInput.value || "";
+    if (activeData.weekStart && activeData.weekEnd && activeData.weekEnd < activeData.weekStart) {
+      activeData.weekEnd = activeData.weekStart;
+      weekEndInput.value = activeData.weekEnd;
     }
     saveSettings();
   });
 
-  itemCountInput.addEventListener("change", () => {
-    state.settings.itemCount = normalizeItemCount(itemCountInput.value, state.settings.schemaVersion);
-    itemCountInput.value = String(state.settings.itemCount);
-    saveSettings();
-  });
-
   seekerStartInput.addEventListener("change", () => {
-    state.settings.seekerStart = seekerStartInput.value || state.settings.weekStart;
+    getActiveCeremonyData().seekerStart = seekerStartInput.value || "";
     saveSettings();
   });
 
@@ -810,7 +1081,7 @@ function renderSummaryPage() {
   const content = template.content.cloneNode(true);
 
   content.querySelector("[data-summary-title]").textContent =
-    `～第${getCeremonyNumber()}回八大明王護摩供　集計表～　報告数は累計数です`;
+    `～第${getCeremonyNumber()}回${getActiveCeremonyConfig().name}　集計表～　報告数は累計数です`;
   content.querySelectorAll("[data-summary-colspan]").forEach((cell) => {
     cell.colSpan = getActiveItems().length + 1;
   });
@@ -873,7 +1144,7 @@ function renderSummaryPage() {
 
 function render() {
   renderTabs();
-  appTitle.textContent = `${state.settings.ceremonyName}毎日集計`;
+  appTitle.textContent = `${getActiveCeremonyConfig().name}毎日集計`;
 
   if (activeTab === "summary") {
     renderSummaryPage();

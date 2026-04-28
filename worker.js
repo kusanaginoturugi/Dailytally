@@ -13,6 +13,18 @@ const DEFAULT_ITEMS = [
 ];
 
 const FELLOWSHIP_NAMES = ["大江戸", "お台場", "羽田", "かながわ", "富士山", "駿天", "埼玉", "千葉", "山梨"];
+const CEREMONY_IDS = [
+  "hachidai-myo-o",
+  "daigen-chiku",
+  "jizo-sonno",
+  "segaki-kuyo",
+  "hokuto-chinatsu",
+  "rokuson-hoju",
+  "chosei-minami",
+  "myozen-enma",
+  "chinkon-shikai",
+];
+const DEFAULT_CEREMONY_ID = CEREMONY_IDS[0];
 const STATE_ID = "main";
 const SETTINGS_SCHEMA_VERSION = 2;
 const MIN_ITEM_COUNT = 1;
@@ -54,11 +66,13 @@ function createDefaultState() {
       activeTab: "admin",
       seekerStart: "2026-04-28",
       ceremonyName: "八大明王護摩供",
+      ceremonyId: DEFAULT_CEREMONY_ID,
       schemaVersion: SETTINGS_SCHEMA_VERSION,
     },
     fellowships: Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, {}])),
     targets: createEmptyTargets(),
     fellowshipTargets: createEmptyFellowshipTargets(),
+    ceremonyData: {},
     users: [],
   };
 }
@@ -70,6 +84,9 @@ function normalizeState(rawState) {
     ...createDefaultState().settings,
     ...(state.settings || {}),
   };
+  if (!CEREMONY_IDS.includes(state.settings.ceremonyId)) {
+    state.settings.ceremonyId = DEFAULT_CEREMONY_ID;
+  }
   state.settings.itemCount = normalizeItemCount(state.settings.itemCount, state.settings.schemaVersion);
   if (!state.settings.ceremonyName) {
     state.settings.ceremonyName = "八大明王護摩供";
@@ -102,6 +119,56 @@ function normalizeState(rawState) {
     ...createEmptyTargets(),
     ...(state.targets || {}),
   };
+
+  if (!state.ceremonyData) {
+    state.ceremonyData = {
+      [DEFAULT_CEREMONY_ID]: {
+        weekStart: state.settings.weekStart,
+        weekEnd: state.settings.weekEnd,
+        seekerStart: state.settings.seekerStart,
+        fellowships: state.fellowships,
+        targets: state.targets,
+        fellowshipTargets: state.fellowshipTargets,
+      },
+    };
+  }
+
+  CEREMONY_IDS.forEach((ceremonyId) => {
+    if (!state.ceremonyData[ceremonyId]) {
+      state.ceremonyData[ceremonyId] = {
+        weekStart: "",
+        weekEnd: "",
+        seekerStart: ceremonyId === DEFAULT_CEREMONY_ID ? "2026-04-28" : "",
+        fellowships: Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, {}])),
+        targets: createEmptyTargets(),
+        fellowshipTargets: createEmptyFellowshipTargets(),
+      };
+    }
+
+    const ceremonyData = state.ceremonyData[ceremonyId];
+    ceremonyData.weekStart = ceremonyData.weekStart || "";
+    ceremonyData.weekEnd = ceremonyData.weekEnd || "";
+    ceremonyData.seekerStart = ceremonyData.seekerStart ?? "";
+    ceremonyData.fellowships = ceremonyData.fellowships || {};
+    ceremonyData.targets = {
+      ...createEmptyTargets(),
+      ...(ceremonyData.targets || {}),
+    };
+    ceremonyData.fellowshipTargets = ceremonyData.fellowshipTargets || {};
+
+    FELLOWSHIP_NAMES.forEach((name) => {
+      if (!ceremonyData.fellowships[name]) {
+        ceremonyData.fellowships[name] = {};
+      }
+      if (!ceremonyData.fellowshipTargets[name]) {
+        ceremonyData.fellowshipTargets[name] = { ...ceremonyData.targets };
+      }
+      ceremonyData.fellowshipTargets[name] = {
+        ...createEmptyTargets(),
+        ...ceremonyData.fellowshipTargets[name],
+      };
+    });
+  });
 
   return state;
 }
@@ -175,6 +242,21 @@ function toNumber(value) {
   return Math.max(0, Number(value) || 0);
 }
 
+function getCeremonyData(state, ceremonyId) {
+  const normalizedCeremonyId = CEREMONY_IDS.includes(ceremonyId) ? ceremonyId : state.settings.ceremonyId;
+  if (!state.ceremonyData[normalizedCeremonyId]) {
+    state.ceremonyData[normalizedCeremonyId] = {
+      weekStart: "",
+      weekEnd: "",
+      seekerStart: "",
+      fellowships: Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, {}])),
+      targets: createEmptyTargets(),
+      fellowshipTargets: createEmptyFellowshipTargets(),
+    };
+  }
+  return state.ceremonyData[normalizedCeremonyId];
+}
+
 async function handleStatePatch(request, env) {
   const patch = await request.json();
   const state = await readState(env.DB);
@@ -184,27 +266,35 @@ async function handleStatePatch(request, env) {
       ...state.settings,
       ...(patch.settings || {}),
     };
+    if (patch.ceremonySettings) {
+      const ceremonyData = getCeremonyData(state, patch.ceremonyId);
+      ceremonyData.weekStart = patch.ceremonySettings.weekStart || "";
+      ceremonyData.weekEnd = patch.ceremonySettings.weekEnd || "";
+      ceremonyData.seekerStart = patch.ceremonySettings.seekerStart || "";
+    }
   } else if (patch.type === "value") {
     const { fellowship, dateId, itemKey } = patch;
     if (!canWriteFellowship(request, fellowship)) {
       return jsonResponse({ error: "Forbidden" }, { status: 403 });
     }
-    if (!state.fellowships[fellowship]) {
-      state.fellowships[fellowship] = {};
+    const ceremonyData = getCeremonyData(state, patch.ceremonyId);
+    if (!ceremonyData.fellowships[fellowship]) {
+      ceremonyData.fellowships[fellowship] = {};
     }
-    if (!state.fellowships[fellowship][dateId]) {
-      state.fellowships[fellowship][dateId] = createEmptyTargets();
+    if (!ceremonyData.fellowships[fellowship][dateId]) {
+      ceremonyData.fellowships[fellowship][dateId] = createEmptyTargets();
     }
-    state.fellowships[fellowship][dateId][itemKey] = toNumber(patch.value);
+    ceremonyData.fellowships[fellowship][dateId][itemKey] = toNumber(patch.value);
   } else if (patch.type === "target") {
     if (patch.fellowship) {
       if (!canWriteFellowship(request, patch.fellowship)) {
         return jsonResponse({ error: "Forbidden" }, { status: 403 });
       }
-      if (!state.fellowshipTargets[patch.fellowship]) {
-        state.fellowshipTargets[patch.fellowship] = createEmptyTargets();
+      const ceremonyData = getCeremonyData(state, patch.ceremonyId);
+      if (!ceremonyData.fellowshipTargets[patch.fellowship]) {
+        ceremonyData.fellowshipTargets[patch.fellowship] = createEmptyTargets();
       }
-      state.fellowshipTargets[patch.fellowship][patch.itemKey] = toNumber(patch.value);
+      ceremonyData.fellowshipTargets[patch.fellowship][patch.itemKey] = toNumber(patch.value);
     } else {
       state.targets[patch.itemKey] = toNumber(patch.value);
     }
