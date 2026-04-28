@@ -478,6 +478,10 @@ function fillSummaryHeaderRow(rowEl) {
     const th = document.createElement("th");
     if (item.key === "seekers") {
       th.textContent = `得道者数(${formatShortDate(state.settings.seekerStart)}～)`;
+    } else if (item.key === "tenchi") {
+      th.append("この護摩供に", document.createElement("br"), "向けての", document.createElement("br"), "天地免劫護摩木");
+    } else if (item.key === "goma") {
+      th.append("この護摩供に", document.createElement("br"), "向けて", document.createElement("br"), "各種護摩木");
     } else if (item.key === "water") {
       th.append("御神水・泉・", document.createElement("br"), "龍華水等");
     } else {
