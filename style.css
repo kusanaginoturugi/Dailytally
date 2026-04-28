@@ -152,6 +152,44 @@ main {
   padding: 4px;
 }
 
+.input-page .data-table {
+  min-width: 760px;
+  table-layout: fixed;
+}
+
+.input-page .data-table th,
+.input-page .data-table td {
+  padding: 5px 4px;
+}
+
+.input-page .data-table thead th {
+  width: 72px;
+  white-space: normal;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.input-page .data-table thead th:first-child,
+.input-page .data-table tbody th,
+.input-page .data-table tfoot th {
+  width: 56px;
+}
+
+.input-page .data-table input,
+.input-page .data-table input.target-input {
+  width: 52px;
+}
+
+.input-page .input-value {
+  min-width: 52px;
+}
+
+.input-page .input-unit {
+  min-width: 1.6em;
+  margin-left: 3px;
+  font-size: 12px;
+}
+
 .data-table tfoot th,
 .data-table tfoot td {
   background: #f4f4f5;
