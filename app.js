@@ -9,59 +9,47 @@ const ITEMS = [
   { key: "fuda", label: "八大明王札", summaryLabel: "八大明王札", unit: "体" },
   { key: "zaitama", label: "明王招財玉", summaryLabel: "明王招財玉", unit: "組" },
   { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
+  { key: "water", label: "御神水・泉・龍華水等", summaryLabel: "御神水・泉・龍華水等", unit: "ケース" },
+  { key: "extra1", label: "追加項目", summaryLabel: "追加項目", unit: "" },
 ];
+const MIN_ITEM_COUNT = 1;
+const MAX_ITEM_COUNT = ITEMS.length;
 
 const STORAGE_KEY = "daily-tally-v2";
 const LEGACY_STORAGE_KEYS = ["daily-tally-v1"];
+const ACTIVE_TAB_KEY = "daily-tally-active-tab";
+const API_STATE_URL = "/api/state";
+const REFRESH_INTERVAL_MS = 15000;
+const SETTINGS_SCHEMA_VERSION = 2;
 
+const appTitle = document.getElementById("appTitle");
 const tabButtons = document.getElementById("tabButtons");
 const pageContainer = document.getElementById("pageContainer");
-const weekStartInput = document.getElementById("weekStart");
-const itemCountSelect = document.getElementById("itemCount");
-const seekerStartInput = document.getElementById("seekerStart");
-const ceremonyNumberInput = document.getElementById("ceremonyNumber");
 
-let state = loadState();
-let activeTab = state.settings.activeTab || fellowshipNames[0];
+let state = createDefaultState();
+let activeTab = "admin";
 
 init();
 
-function init() {
+async function init() {
+  state = await loadState();
+  activeTab = getSavedActiveTab();
+
   if (!state.settings.weekStart) {
     state.settings.weekStart = toISODate(new Date());
   }
 
-  weekStartInput.value = state.settings.weekStart;
-  itemCountSelect.value = String(state.settings.itemCount);
-  seekerStartInput.value = state.settings.seekerStart;
-  ceremonyNumberInput.value = String(state.settings.ceremonyNumber);
-
-  weekStartInput.addEventListener("change", () => {
-    state.settings.weekStart = weekStartInput.value || toISODate(new Date());
-    saveState();
-    render();
-  });
-
-  itemCountSelect.addEventListener("change", () => {
-    state.settings.itemCount = Number(itemCountSelect.value);
-    saveState();
-    render();
-  });
-
-  seekerStartInput.addEventListener("change", () => {
-    state.settings.seekerStart = seekerStartInput.value || state.settings.weekStart;
-    saveState();
-    render();
-  });
-
-  ceremonyNumberInput.addEventListener("input", () => {
-    ceremonyNumberInput.value = ceremonyNumberInput.value.replace(/\D/g, "");
-    state.settings.ceremonyNumber = Number(ceremonyNumberInput.value) || 30;
-    saveState();
-    render();
-  });
-
+  setInterval(refreshStateFromDatabase, REFRESH_INTERVAL_MS);
   render();
+}
+
+function getSavedActiveTab() {
+  const savedTab = localStorage.getItem(ACTIVE_TAB_KEY);
+  return isKnownTab(savedTab) ? savedTab : "admin";
+}
+
+function isKnownTab(tabName) {
+  return tabName === "admin" || tabName === "summary" || fellowshipNames.includes(tabName);
 }
 
 function toISODate(date) {
@@ -91,6 +79,11 @@ function formatShortDate(iso) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+function getCeremonyNumber() {
+  const year = parseISODate(state.settings.weekStart || toISODate(new Date())).getFullYear();
+  return year - 1995;
+}
+
 function getActiveItems() {
   return ITEMS.slice(0, state.settings.itemCount);
 }
@@ -103,60 +96,110 @@ function createEmptyTargets() {
   return Object.fromEntries(ITEMS.map((item) => [item.key, 0]));
 }
 
-function ensureStateShape() {
-  if (!state.settings) {
-    state.settings = {
-      weekStart: toISODate(new Date()),
-      itemCount: 9,
-      activeTab: fellowshipNames[0],
+function createEmptyFellowshipTargets() {
+  return Object.fromEntries(fellowshipNames.map((name) => [name, createEmptyTargets()]));
+}
+
+function createDefaultState() {
+  return {
+    settings: {
+      weekStart: "",
+      itemCount: 10,
+      activeTab: "admin",
       seekerStart: "2026-04-28",
-      ceremonyNumber: 30,
+      ceremonyName: "八大明王護摩供",
+      schemaVersion: SETTINGS_SCHEMA_VERSION,
+    },
+    fellowships: Object.fromEntries(fellowshipNames.map((name) => [name, {}])),
+    targets: createEmptyTargets(),
+    fellowshipTargets: createEmptyFellowshipTargets(),
+  };
+}
+
+function normalizeStateShape(targetState) {
+  if (!targetState.settings) {
+    targetState.settings = {
+      weekStart: toISODate(new Date()),
+      itemCount: 10,
+      activeTab: "admin",
+      seekerStart: "2026-04-28",
+      ceremonyName: "八大明王護摩供",
+      schemaVersion: SETTINGS_SCHEMA_VERSION,
     };
   }
 
-  if (!state.settings.weekStart) {
-    state.settings.weekStart = toISODate(new Date());
+  if (!targetState.settings.weekStart) {
+    targetState.settings.weekStart = toISODate(new Date());
   }
 
-  if (!state.settings.seekerStart) {
-    state.settings.seekerStart = "2026-04-28";
+  if (!targetState.settings.seekerStart) {
+    targetState.settings.seekerStart = "2026-04-28";
   }
 
-  if (!state.settings.ceremonyNumber) {
-    state.settings.ceremonyNumber = 30;
+  if (!targetState.settings.ceremonyName) {
+    targetState.settings.ceremonyName = "八大明王護摩供";
   }
 
-  state.settings.itemCount = [7, 8, 9].includes(Number(state.settings.itemCount))
-    ? Number(state.settings.itemCount)
-    : 9;
-  state.settings.activeTab =
-    state.settings.activeTab === "summary" || fellowshipNames.includes(state.settings.activeTab)
-      ? state.settings.activeTab
-      : fellowshipNames[0];
+  targetState.settings.itemCount = normalizeItemCount(targetState.settings.itemCount, targetState.settings.schemaVersion);
+  targetState.settings.schemaVersion = SETTINGS_SCHEMA_VERSION;
+  targetState.settings.activeTab = "admin";
 
-  if (!state.fellowships) {
-    state.fellowships = {};
+  if (!targetState.fellowships) {
+    targetState.fellowships = {};
   }
 
-  if (!state.targets) {
-    state.targets = createEmptyTargets();
+  if (!targetState.targets) {
+    targetState.targets = createEmptyTargets();
+  }
+
+  if (!targetState.fellowshipTargets) {
+    targetState.fellowshipTargets = {};
   }
 
   Array.from({ length: fellowshipNames.length }, (_, i) => `伝道会${i + 1}`).forEach((oldName, index) => {
     const newName = fellowshipNames[index];
-    if (state.fellowships[oldName] && !state.fellowships[newName]) {
-      state.fellowships[newName] = state.fellowships[oldName];
+    if (targetState.fellowships[oldName] && !targetState.fellowships[newName]) {
+      targetState.fellowships[newName] = targetState.fellowships[oldName];
     }
   });
 
   fellowshipNames.forEach((name) => {
-    if (!state.fellowships[name]) {
-      state.fellowships[name] = {};
+    if (!targetState.fellowships[name]) {
+      targetState.fellowships[name] = {};
     }
+    if (!targetState.fellowshipTargets[name]) {
+      targetState.fellowshipTargets[name] = { ...targetState.targets };
+    }
+    targetState.fellowshipTargets[name] = {
+      ...createEmptyTargets(),
+      ...targetState.fellowshipTargets[name],
+    };
   });
+
+  targetState.targets = {
+    ...createEmptyTargets(),
+    ...targetState.targets,
+  };
+
+  return targetState;
 }
 
-function loadState() {
+function ensureStateShape() {
+  state = normalizeStateShape(state);
+}
+
+function normalizeItemCount(value, schemaVersion) {
+  const itemCount = Number(value);
+  if (!schemaVersion && itemCount === 9) {
+    return 10;
+  }
+  if (!Number.isInteger(itemCount)) {
+    return 10;
+  }
+  return Math.min(MAX_ITEM_COUNT, Math.max(MIN_ITEM_COUNT, itemCount));
+}
+
+function loadLocalState() {
   const migrateLegacyState = () => {
     const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEYS[0]);
     if (!legacyRaw) {
@@ -167,15 +210,16 @@ function loadState() {
       const migrated = {
         settings: {
           weekStart: toISODate(new Date()),
-          itemCount: 9,
-          activeTab: fellowshipNames[0],
+          itemCount: 10,
+          activeTab: "admin",
           seekerStart: "2026-04-28",
-          ceremonyNumber: 30,
+          ceremonyName: "八大明王護摩供",
+          schemaVersion: SETTINGS_SCHEMA_VERSION,
         },
         fellowships: legacyParsed,
         targets: createEmptyTargets(),
+        fellowshipTargets: createEmptyFellowshipTargets(),
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
       return migrated;
     } catch (_error) {
       return null;
@@ -188,34 +232,112 @@ function loadState() {
     const loaded = {
       settings: raw.settings || {
         weekStart: "",
-        itemCount: 9,
-        activeTab: fellowshipNames[0],
+        itemCount: 10,
+        activeTab: "admin",
         seekerStart: "2026-04-28",
-        ceremonyNumber: 30,
+        ceremonyName: "八大明王護摩供",
+        schemaVersion: SETTINGS_SCHEMA_VERSION,
       },
       fellowships: raw.fellowships || {},
       targets: raw.targets || createEmptyTargets(),
+      fellowshipTargets: raw.fellowshipTargets || createEmptyFellowshipTargets(),
     };
-    state = loaded;
+    return normalizeStateShape(loaded);
+  } catch (_error) {
+    return createDefaultState();
+  }
+}
+
+async function loadState() {
+  try {
+    const response = await fetch(API_STATE_URL);
+    if (!response.ok) {
+      throw new Error(`State API returned ${response.status}`);
+    }
+
+    const remoteState = await response.json();
+    state = remoteState;
+    ensureStateShape();
+
+    const localState = loadLocalState();
+    if (hasLocalData(localState) && !hasRemoteData(state)) {
+      state = localState;
+      ensureStateShape();
+      await saveState();
+    }
+
+    return state;
+  } catch (error) {
+    console.error("データベースから読み込めませんでした。ローカルの保存データを表示します。", error);
+    state = loadLocalState();
     ensureStateShape();
     return state;
-  } catch (_error) {
-    return {
-      settings: {
-        weekStart: "",
-        itemCount: 9,
-        activeTab: fellowshipNames[0],
-        seekerStart: "2026-04-28",
-        ceremonyNumber: 30,
-      },
-      fellowships: Object.fromEntries(fellowshipNames.map((name) => [name, {}])),
-      targets: createEmptyTargets(),
-    };
+  }
+}
+
+function hasRemoteData(currentState) {
+  return hasSavedValues(currentState) || hasTargetValues(currentState);
+}
+
+function hasLocalData(localState) {
+  return hasSavedValues(localState) || hasTargetValues(localState);
+}
+
+function hasSavedValues(currentState) {
+  return Object.values(currentState.fellowships || {}).some((days) =>
+    Object.values(days || {}).some((day) => Object.values(day || {}).some((value) => Number(value) > 0)),
+  );
+}
+
+function hasTargetValues(currentState) {
+  return (
+    Object.values(currentState.targets || {}).some((value) => Number(value) > 0) ||
+    Object.values(currentState.fellowshipTargets || {}).some((targets) =>
+      Object.values(targets || {}).some((value) => Number(value) > 0),
+    )
+  );
+}
+
+async function patchState(patch) {
+  try {
+    const response = await fetch(API_STATE_URL, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!response.ok) {
+      throw new Error(`State API returned ${response.status}`);
+    }
+  } catch (error) {
+    console.error("データベースに保存できませんでした。", error);
   }
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  return patchState({ type: "replace", state });
+}
+
+function saveSettings() {
+  const { weekStart, itemCount, seekerStart, ceremonyName, schemaVersion } = state.settings;
+  return patchState({ type: "settings", settings: { weekStart, itemCount, seekerStart, ceremonyName, schemaVersion } });
+}
+
+async function refreshStateFromDatabase() {
+  if (document.activeElement && ["INPUT", "SELECT"].includes(document.activeElement.tagName)) {
+    return;
+  }
+
+  try {
+    const response = await fetch(API_STATE_URL);
+    if (!response.ok) {
+      throw new Error(`State API returned ${response.status}`);
+    }
+
+    state = normalizeStateShape(await response.json());
+    render();
+  } catch (error) {
+    console.error("データベースから最新データを読み込めませんでした。", error);
+  }
 }
 
 function getValue(name, dateId, itemKey) {
@@ -227,24 +349,29 @@ function setValue(name, dateId, itemKey, value) {
   if (!state.fellowships[name][dateId]) {
     state.fellowships[name][dateId] = createEmptyDay();
   }
-  state.fellowships[name][dateId][itemKey] = Math.max(0, Number(value) || 0);
-  saveState();
+  const normalizedValue = Math.max(0, Number(value) || 0);
+  state.fellowships[name][dateId][itemKey] = normalizedValue;
+  patchState({ type: "value", fellowship: name, dateId, itemKey, value: normalizedValue });
 }
 
-function getTargetValue(itemKey) {
-  return Number(state.targets[itemKey]) || 0;
+function getTargetValue(name, itemKey) {
+  return Number(state.fellowshipTargets[name]?.[itemKey]) || 0;
 }
 
-function setTargetValue(itemKey, value) {
-  state.targets[itemKey] = Math.max(0, Number(value) || 0);
-  saveState();
+function setTargetValue(name, itemKey, value) {
+  const normalizedValue = Math.max(0, Number(value) || 0);
+  if (!state.fellowshipTargets[name]) {
+    state.fellowshipTargets[name] = createEmptyTargets();
+  }
+  state.fellowshipTargets[name][itemKey] = normalizedValue;
+  patchState({ type: "target", fellowship: name, itemKey, value: normalizedValue });
 }
 
 function canEditTargets() {
   return toISODate(new Date()) === state.settings.weekStart;
 }
 
-function createTargetInput(itemKey, currentValue) {
+function createTargetInput(name, itemKey, currentValue) {
   const input = document.createElement("input");
   input.className = "target-input";
   input.type = "text";
@@ -253,13 +380,24 @@ function createTargetInput(itemKey, currentValue) {
   input.value = currentValue === 0 ? "" : String(currentValue);
   input.addEventListener("input", () => {
     input.value = input.value.replace(/\D/g, "");
-    setTargetValue(itemKey, input.value);
+    setTargetValue(name, itemKey, input.value);
   });
   return input;
 }
 
 function renderTabs() {
   tabButtons.innerHTML = "";
+
+  const adminButton = document.createElement("button");
+  adminButton.className = `tab-button ${activeTab === "admin" ? "active" : ""}`;
+  adminButton.textContent = "管理ページ";
+  adminButton.type = "button";
+  adminButton.addEventListener("click", () => {
+    activeTab = "admin";
+    localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+    render();
+  });
+  tabButtons.appendChild(adminButton);
 
   fellowshipNames.forEach((name) => {
     const button = document.createElement("button");
@@ -268,8 +406,7 @@ function renderTabs() {
     button.type = "button";
     button.addEventListener("click", () => {
       activeTab = name;
-      state.settings.activeTab = activeTab;
-      saveState();
+      localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
       render();
     });
     tabButtons.appendChild(button);
@@ -281,11 +418,11 @@ function renderTabs() {
   summaryButton.type = "button";
   summaryButton.addEventListener("click", () => {
     activeTab = "summary";
-    state.settings.activeTab = activeTab;
-    saveState();
+    localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
     render();
   });
   tabButtons.appendChild(summaryButton);
+
 }
 
 function fillHeaderRow(rowEl) {
@@ -315,7 +452,7 @@ function fillSummaryHeaderRow(rowEl) {
 function renderInputPage(name) {
   const template = document.getElementById("inputPageTemplate");
   const content = template.content.cloneNode(true);
-  content.querySelector(".page-title").textContent = `${name} 入力ページ`;
+  content.querySelector(".page-title").textContent = `第${getCeremonyNumber()}回八大明王護摩供　${name}`;
 
   fillHeaderRow(content.querySelector("#inputHeaderRow"));
   const tbody = content.querySelector("tbody");
@@ -330,10 +467,10 @@ function renderInputPage(name) {
 
   getActiveItems().forEach((item) => {
     const td = document.createElement("td");
-    const currentValue = getTargetValue(item.key);
+    const currentValue = getTargetValue(name, item.key);
 
     if (targetsEditable) {
-      td.appendChild(createTargetInput(item.key, currentValue));
+      td.appendChild(createTargetInput(name, item.key, currentValue));
     } else {
       td.textContent = currentValue === 0 ? "" : String(currentValue);
     }
@@ -373,6 +510,40 @@ function renderInputPage(name) {
   pageContainer.appendChild(content);
 }
 
+function renderAdminPage() {
+  const template = document.getElementById("adminPageTemplate");
+  const content = template.content.cloneNode(true);
+  const weekStartInput = content.querySelector("#weekStart");
+  const itemCountInput = content.querySelector("#itemCount");
+  const seekerStartInput = content.querySelector("#seekerStart");
+  const ceremonyNumberInput = content.querySelector("#ceremonyNumber");
+
+  weekStartInput.value = state.settings.weekStart;
+  itemCountInput.value = String(state.settings.itemCount);
+  seekerStartInput.value = state.settings.seekerStart;
+  ceremonyNumberInput.value = String(getCeremonyNumber());
+
+  weekStartInput.addEventListener("change", () => {
+    state.settings.weekStart = weekStartInput.value || toISODate(new Date());
+    ceremonyNumberInput.value = String(getCeremonyNumber());
+    saveSettings();
+  });
+
+  itemCountInput.addEventListener("change", () => {
+    state.settings.itemCount = normalizeItemCount(itemCountInput.value, state.settings.schemaVersion);
+    itemCountInput.value = String(state.settings.itemCount);
+    saveSettings();
+  });
+
+  seekerStartInput.addEventListener("change", () => {
+    state.settings.seekerStart = seekerStartInput.value || state.settings.weekStart;
+    saveSettings();
+  });
+
+  pageContainer.innerHTML = "";
+  pageContainer.appendChild(content);
+}
+
 function getDayTotals(dateId) {
   const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
 
@@ -385,12 +556,24 @@ function getDayTotals(dateId) {
   return totals;
 }
 
+function getTargetTotals() {
+  const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
+
+  fellowshipNames.forEach((name) => {
+    getActiveItems().forEach((item) => {
+      totals[item.key] += getTargetValue(name, item.key);
+    });
+  });
+
+  return totals;
+}
+
 function renderSummaryPage() {
   const template = document.getElementById("summaryPageTemplate");
   const content = template.content.cloneNode(true);
 
   content.querySelector("[data-summary-title]").textContent =
-    `～第${state.settings.ceremonyNumber}回八大明王護摩供　集計表～　報告数は累計数です`;
+    `～第${getCeremonyNumber()}回八大明王護摩供　集計表～　報告数は累計数です`;
   content.querySelectorAll("[data-summary-colspan]").forEach((cell) => {
     cell.colSpan = getActiveItems().length + 1;
   });
@@ -406,23 +589,12 @@ function renderSummaryPage() {
   targetLabelCell.textContent = "目標数";
   targetRow.appendChild(targetLabelCell);
 
-  const targetsEditable = canEditTargets();
+  const targetTotals = getTargetTotals();
 
   getActiveItems().forEach((item) => {
     const td = document.createElement("td");
-    const currentValue = getTargetValue(item.key);
-
-    if (targetsEditable) {
-      td.appendChild(createTargetInput(item.key, currentValue));
-      const unit = document.createElement("span");
-      unit.className = "summary-unit";
-      unit.textContent = item.unit;
-      td.appendChild(unit);
-    } else {
-      const value = currentValue || "";
-      td.innerHTML = `<span class="summary-value">${value}</span><span class="summary-unit">${item.unit}</span>`;
-    }
-
+    const value = targetTotals[item.key] || "";
+    td.innerHTML = `<span class="summary-value">${value}</span><span class="summary-unit">${item.unit}</span>`;
     targetRow.appendChild(td);
   });
 
@@ -465,9 +637,12 @@ function renderSummaryPage() {
 
 function render() {
   renderTabs();
+  appTitle.textContent = `${state.settings.ceremonyName}毎日集計`;
 
   if (activeTab === "summary") {
     renderSummaryPage();
+  } else if (activeTab === "admin") {
+    renderAdminPage();
   } else {
     renderInputPage(activeTab);
   }

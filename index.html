@@ -8,34 +8,10 @@
   </head>
   <body>
     <header>
-      <h1>毎日集計</h1>
-      <p>9つの伝道会が毎日入力し、次ページで全体合計を確認できます。</p>
+      <h1 id="appTitle">毎日集計</h1>
     </header>
 
     <main>
-      <section class="settings" aria-label="表示設定">
-        <label>
-          週の開始日
-          <input id="weekStart" type="date" />
-        </label>
-        <label>
-          項目数
-          <select id="itemCount">
-            <option value="7">7項目</option>
-            <option value="8">8項目</option>
-            <option value="9" selected>9項目</option>
-          </select>
-        </label>
-        <label>
-          得道者数開始日
-          <input id="seekerStart" type="date" />
-        </label>
-        <label>
-          護摩供回数
-          <input id="ceremonyNumber" type="text" inputmode="numeric" pattern="[0-9]*" />
-        </label>
-      </section>
-
       <section class="tabs" aria-label="伝道会ページ切り替え">
         <div id="tabButtons" class="tab-buttons"></div>
       </section>
@@ -46,7 +22,6 @@
     <template id="inputPageTemplate">
       <section class="input-page">
         <h2 class="page-title"></h2>
-        <p class="page-description">入力数値はこの端末に自動保存されます。</p>
         <div class="table-wrap">
           <table class="data-table">
             <thead>
@@ -54,6 +29,29 @@
             </thead>
             <tbody></tbody>
           </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="adminPageTemplate">
+      <section class="admin-page">
+        <div class="settings" aria-label="表示設定">
+          <label>
+            週の開始日
+            <input id="weekStart" type="date" />
+          </label>
+          <label>
+            項目数
+            <input id="itemCount" type="number" min="1" max="11" step="1" />
+          </label>
+          <label>
+            得道者数開始日
+            <input id="seekerStart" type="date" />
+          </label>
+          <label>
+            護摩供回数
+            <input id="ceremonyNumber" type="text" readonly />
+          </label>
         </div>
       </section>
     </template>
