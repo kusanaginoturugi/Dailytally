@@ -404,6 +404,32 @@ function appendReadonlyValue(cell, value, unit) {
   appendUnit(cell, unit);
 }
 
+function getFellowshipWeeklyTotals(name) {
+  const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
+
+  getWeekDates().forEach((date) => {
+    getActiveItems().forEach((item) => {
+      totals[item.key] += getValue(name, date.id, item.key);
+    });
+  });
+
+  return totals;
+}
+
+function updateInputWeeklyTotalRow(totalRow, name) {
+  const totals = getFellowshipWeeklyTotals(name);
+
+  getActiveItems().forEach((item) => {
+    const cell = totalRow.querySelector(`[data-item-key="${item.key}"]`);
+    if (!cell) {
+      return;
+    }
+
+    cell.innerHTML = "";
+    appendReadonlyValue(cell, totals[item.key], item.unit);
+  });
+}
+
 function renderTabs() {
   tabButtons.innerHTML = "";
 
@@ -498,6 +524,7 @@ function renderInputPage(name) {
   });
 
   tbody.appendChild(targetRow);
+  const totalRow = content.querySelector("#inputWeeklyTotalRow");
 
   getWeekDates().forEach((date) => {
     const tr = document.createElement("tr");
@@ -517,6 +544,7 @@ function renderInputPage(name) {
       input.addEventListener("input", () => {
         input.value = input.value.replace(/\D/g, "");
         setValue(name, date.id, item.key, input.value);
+        updateInputWeeklyTotalRow(totalRow, name);
       });
       td.appendChild(input);
       appendUnit(td, item.unit);
@@ -525,6 +553,18 @@ function renderInputPage(name) {
 
     tbody.appendChild(tr);
   });
+
+  const labelCell = document.createElement("th");
+  labelCell.textContent = "最終";
+  totalRow.appendChild(labelCell);
+
+  getActiveItems().forEach((item) => {
+    const td = document.createElement("td");
+    td.dataset.itemKey = item.key;
+    totalRow.appendChild(td);
+  });
+
+  updateInputWeeklyTotalRow(totalRow, name);
 
   pageContainer.innerHTML = "";
   pageContainer.appendChild(content);
