@@ -15,7 +15,7 @@ const CEREMONY_CONFIGS = [
       { key: "fuda", label: "八大明王札", summaryLabel: "八大明王札", unit: "体" },
       { key: "zaitama", label: "明王招財玉", summaryLabel: "明王招財玉", unit: "組" },
       { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
-      { key: "water", label: "御神水・泉・龍華水等", summaryLabel: "御神水・泉・龍華水等", unit: "ケース" },
+      { key: "water", label: "御神水・泉・龍華水等", summaryLabel: "御神水・泉・龍華水等", unit: "箱" },
       { key: "extra1", label: "追加項目", summaryLabel: "追加項目", unit: "" },
     ],
   },
@@ -51,7 +51,7 @@ const CEREMONY_CONFIGS = [
       { key: "jizo_fuda", label: "地蔵古佛札", summaryLabel: "地蔵古佛札", unit: "体" },
       { key: "mayudama", label: "まゆ玉", summaryLabel: "まゆ玉", unit: "枚" },
       { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
-      { key: "water", label: "御神水・命泉・泉・龍華水", summaryLabel: "御神水・命泉・泉・龍華水", unit: "ケース" },
+      { key: "water", label: "御神水・命泉・泉・龍華水", summaryLabel: "御神水・命泉・泉・龍華水", unit: "箱" },
     ],
   },
   {
