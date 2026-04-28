@@ -78,7 +78,7 @@ function getWeekDates() {
   const current = new Date(start);
   const maxDays = 366;
 
-  while (current <= end && dates.length < maxDays) {
+  while (current < end && dates.length < maxDays) {
     const date = new Date(start);
     date.setDate(start.getDate() + dates.length);
     const label = `${date.getMonth() + 1}/${date.getDate()}`;
@@ -372,6 +372,10 @@ function getValue(name, dateId, itemKey) {
   return Number(day[itemKey]) || 0;
 }
 
+function getFinalValue(name, itemKey) {
+  return getValue(name, state.settings.weekEnd, itemKey) || getValue(name, FINAL_ROW_ID, itemKey);
+}
+
 function setValue(name, dateId, itemKey, value) {
   if (!state.fellowships[name][dateId]) {
     state.fellowships[name][dateId] = createEmptyDay();
@@ -595,7 +599,7 @@ function renderInputPage(name) {
   getActiveItems().forEach((item) => {
     const td = document.createElement("td");
     const input = document.createElement("input");
-    const currentValue = getValue(name, FINAL_ROW_ID, item.key);
+    const currentValue = getFinalValue(name, item.key);
     input.type = "text";
     input.inputMode = "numeric";
     input.pattern = "[0-9]*";
@@ -603,7 +607,7 @@ function renderInputPage(name) {
     selectOnFocus(input);
     input.addEventListener("input", () => {
       input.value = input.value.replace(/\D/g, "");
-      setValue(name, FINAL_ROW_ID, item.key, input.value);
+      setValue(name, state.settings.weekEnd, item.key, input.value);
     });
     td.appendChild(input);
     appendUnit(td, item.unit);
@@ -675,6 +679,18 @@ function getDayTotals(dateId) {
   return totals;
 }
 
+function getFinalTotals() {
+  const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
+
+  fellowshipNames.forEach((name) => {
+    getActiveItems().forEach((item) => {
+      totals[item.key] += getFinalValue(name, item.key);
+    });
+  });
+
+  return totals;
+}
+
 function getTargetTotals() {
   const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
 
@@ -737,7 +753,7 @@ function renderSummaryPage() {
   });
 
   const totalRow = content.querySelector("#weeklyTotalRow");
-  const finalTotals = getDayTotals(FINAL_ROW_ID);
+  const finalTotals = getFinalTotals();
   const labelCell = document.createElement("th");
   labelCell.textContent = "最終";
   totalRow.appendChild(labelCell);
