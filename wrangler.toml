@@ -9,5 +9,5 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "dailytally"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "0ebc08db-cb6b-466a-9e0f-a6904f6626ed"
 migrations_dir = "migrations"
