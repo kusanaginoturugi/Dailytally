@@ -37,22 +37,33 @@ main {
 .settings {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: 22px;
+  margin-bottom: 0;
 }
 
 .settings label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
+  gap: 12px;
+  font-size: 24px;
+  font-weight: 700;
 }
 
 .settings input,
 .settings select {
-  padding: 4px 8px;
+  min-width: 180px;
+  padding: 8px 14px;
   border: 1px solid #a1a1aa;
-  border-radius: 6px;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.settings select {
+  min-width: 130px;
+}
+
+.settings input[readonly] {
+  background: #ffffff;
 }
 
 .tab-buttons {
@@ -83,10 +94,6 @@ main {
   padding: 12px;
 }
 
-.page-description {
-  margin-top: 0;
-}
-
 .table-wrap {
   overflow-x: auto;
 }
@@ -94,7 +101,7 @@ main {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 850px;
+  min-width: 980px;
 }
 
 .data-table th,
@@ -113,52 +120,154 @@ main {
   text-align: right;
 }
 
+.data-table .target-row th,
+.data-table .target-row td {
+  background: #f4f4f5;
+  font-weight: 700;
+}
+
+.input-page .data-table tbody th {
+  text-align: center;
+}
+
+.data-table input.target-input {
+  width: 96px;
+  border: 1px solid #a1a1aa;
+  border-radius: 6px;
+  padding: 4px;
+}
+
 .data-table tfoot th,
 .data-table tfoot td {
   background: #f4f4f5;
   font-weight: 700;
 }
 
-.report-sheet {
-  background: #efefef;
+.summary-page {
+  color: #000000;
 }
 
-.sheet-title {
+.summary-page .table-wrap {
+  background: #ffffff;
+}
+
+.summary-table {
+  border: 1.5px solid #000000;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
+}
+
+.summary-table th,
+.summary-table td {
+  position: relative;
+  border: 1.5px solid #000000;
+  background: #ffffff;
+  color: #000000;
+}
+
+.summary-table-title-row th {
+  height: 34px;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.summary-meta-row th {
+  height: 28px;
+  padding: 2px 8px;
   text-align: center;
-  margin: 4px 0 8px;
-  letter-spacing: 0.04em;
+  font-size: 18px;
+  font-weight: 400;
 }
 
-.sheet-subtitle {
-  margin: 0 0 10px;
+.summary-table thead tr:last-child th {
+  width: 110px;
+  min-width: 84px;
+  height: 166px;
+  padding: 8px 6px;
+  vertical-align: middle;
+  white-space: normal;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.25;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.summary-table thead tr:last-child th:first-child {
+  width: 64px;
+  min-width: 64px;
+  writing-mode: horizontal-tb;
+}
+
+.summary-table tbody th,
+.summary-table tfoot th {
+  width: 64px;
+  min-width: 64px;
+  height: 52px;
+  padding: 4px 6px;
+  text-align: left;
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.summary-table tbody td,
+.summary-table tfoot td {
+  min-width: 84px;
+  height: 52px;
+  padding: 4px 7px;
   text-align: center;
-  font-weight: 600;
+  vertical-align: middle;
+  font-size: 22px;
 }
 
-.report-sheet .data-table {
-  background: #f6f6f6;
-  border: 2px solid #3f3f46;
+.summary-table .target-row th,
+.summary-table .target-row td {
+  border-bottom-width: 2px;
+  background: #ffffff;
 }
 
-.report-sheet .data-table th,
-.report-sheet .data-table td {
-  border: 1px solid #3f3f46;
-  padding: 7px 6px;
-  font-size: 0.95rem;
+.summary-table tfoot th,
+.summary-table tfoot td {
+  border-top-width: 2px;
+  font-weight: 400;
 }
 
-.report-sheet thead th {
-  background: #ececec;
-  font-weight: 700;
+.summary-value {
+  display: inline-block;
+  min-width: 1em;
+  padding-right: 0;
 }
 
-.report-sheet tbody tr.target-row th,
-.report-sheet tbody tr.target-row td {
-  background: #e9e9e9;
-  font-weight: 700;
+.summary-unit {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  font-size: 12px;
 }
 
-.report-sheet tfoot th,
-.report-sheet tfoot td {
-  background: #e5e5e5;
+.target-input {
+  width: calc(100% - 18px);
+  border: 0;
+  outline: 0;
+  padding: 0 12px 0 0;
+  background: transparent;
+  font: inherit;
+  text-align: right;
+}
+
+.summary-table input.target-input {
+  width: calc(100% - 18px);
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  text-align: center;
+}
+
+.summary-note {
+  margin: 0;
+  border: 1.5px solid #000000;
+  border-top: 0;
+  padding: 2px 6px;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font-size: 18px;
+  text-align: left;
 }

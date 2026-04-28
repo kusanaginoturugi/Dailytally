@@ -1,0 +1,9 @@
+/.git
+/.wrangler
+/migrations
+/node_modules
+/package.json
+/package-lock.json
+/README.md
+/worker.js
+/wrangler.toml
