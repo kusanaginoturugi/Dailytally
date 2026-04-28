@@ -248,6 +248,7 @@ main {
 .summary-table tfoot th,
 .summary-table tfoot td {
   border-top-width: 2px;
+  background: #ffffff;
   font-weight: 400;
 }
 
