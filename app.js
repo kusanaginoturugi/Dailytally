@@ -838,6 +838,8 @@ function fillHeaderRow(rowEl) {
       th.append("三期滅劫之霊木", document.createElement("br"), "代理奉納");
     } else if (item.key === "ryuge_proxy") {
       th.append("三會龍華之御柱", document.createElement("br"), "代理奉納");
+    } else if (item.key === "maso") {
+      th.append("媽祖救航灯", document.createElement("br"), "代理奉納");
     } else {
       th.textContent = item.label;
     }
