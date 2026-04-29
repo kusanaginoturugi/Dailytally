@@ -352,7 +352,7 @@ main {
   display: inline-block;
   writing-mode: horizontal-tb;
   font-size: 14px;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .summary-table tbody th,

@@ -854,7 +854,6 @@ function fillSummaryHeaderRow(rowEl) {
         const dateSpan = document.createElement("span");
         dateSpan.className = "horizontal-date";
         dateSpan.textContent = `(${formatShortDate(seekerStart)}～)`;
-        th.appendChild(document.createElement("br"));
         th.appendChild(dateSpan);
       } else {
         th.textContent = "得道者数";
