@@ -348,6 +348,13 @@ main {
   writing-mode: horizontal-tb;
 }
 
+.horizontal-date {
+  display: inline-block;
+  writing-mode: horizontal-tb;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
 .summary-table tbody th,
 .summary-table tfoot th {
   width: 64px;

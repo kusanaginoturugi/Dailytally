@@ -849,7 +849,16 @@ function fillSummaryHeaderRow(rowEl) {
     const th = document.createElement("th");
     if (item.key === "seekers") {
       const seekerStart = getActiveCeremonyData().seekerStart;
-      th.textContent = seekerStart ? `得道者数(${formatShortDate(seekerStart)}～)` : "得道者数";
+      if (seekerStart) {
+        th.textContent = "得道者数";
+        const dateSpan = document.createElement("span");
+        dateSpan.className = "horizontal-date";
+        dateSpan.textContent = `(${formatShortDate(seekerStart)}～)`;
+        th.appendChild(document.createElement("br"));
+        th.appendChild(dateSpan);
+      } else {
+        th.textContent = "得道者数";
+      }
     } else if (item.key === "tenchi") {
       th.append("この護摩供に", document.createElement("br"), "向けての", document.createElement("br"), "天地免劫護摩木");
     } else if (item.key === "goma") {
