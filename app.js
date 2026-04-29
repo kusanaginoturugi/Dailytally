@@ -213,11 +213,25 @@ function normalizeCurrentUser(user) {
 
 function getSavedActiveTab() {
   const savedTab = localStorage.getItem(ACTIVE_TAB_KEY);
-  return isKnownTab(savedTab) ? savedTab : "admin";
+  if (isKnownTab(savedTab)) {
+    return savedTab;
+  }
+  return canAccessAdmin() ? "admin" : (currentUser?.fellowship || fellowshipNames[0]);
 }
 
 function isKnownTab(tabName) {
-  return tabName === "admin" || tabName === "summary" || fellowshipNames.includes(tabName);
+  if (tabName === "admin") {
+    return canAccessAdmin();
+  }
+  return tabName === "summary" || fellowshipNames.includes(tabName);
+}
+
+function canAccessAdmin() {
+  // SSO未連携（currentUserがnullまたはfellowshipが空）の場合は、便宜上管理者として扱う（移行期間用）
+  if (!currentUser || !currentUser.fellowship) {
+    return true;
+  }
+  return currentUser.role === "admin";
 }
 
 function toISODate(date) {
@@ -325,6 +339,7 @@ function createEmptyUser() {
     fellowship: "",
     name: "",
     email: "",
+    role: "",
   };
 }
 
@@ -790,16 +805,18 @@ function renderTabs() {
   });
   tabButtons.appendChild(summaryButton);
 
-  const adminButton = document.createElement("button");
-  adminButton.className = `tab-button ${activeTab === "admin" ? "active" : ""}`;
-  adminButton.textContent = "管理ページ";
-  adminButton.type = "button";
-  adminButton.addEventListener("click", () => {
-    activeTab = "admin";
-    localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
-    render();
-  });
-  tabButtons.appendChild(adminButton);
+  if (canAccessAdmin()) {
+    const adminButton = document.createElement("button");
+    adminButton.className = `tab-button ${activeTab === "admin" ? "active" : ""}`;
+    adminButton.textContent = "管理ページ";
+    adminButton.type = "button";
+    adminButton.addEventListener("click", () => {
+      activeTab = "admin";
+      localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+      render();
+    });
+    tabButtons.appendChild(adminButton);
+  }
 }
 
 function fillHeaderRow(rowEl) {

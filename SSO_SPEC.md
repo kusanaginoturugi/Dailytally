@@ -18,6 +18,7 @@ SSO側から以下のHTTPヘッダーをWorkerへ渡してください。
 | `x-dailytally-fellowship` | 必須 | 伝道会名 |
 | `x-dailytally-name` | 推奨 | 氏名 |
 | `x-dailytally-email` | 推奨 | メールアドレス |
+| `x-dailytally-role` | 任意 | ロール（`admin` で管理ページ表示） |
 
 メールアドレスはCloudflare Access標準の `cf-access-authenticated-user-email` でも代用できます。
 
@@ -35,20 +36,18 @@ SSO側から以下のHTTPヘッダーをWorkerへ渡してください。
 - 千葉
 - 山梨
 
-表記ゆれがあると入力権限が正しく判定できません。
+表記ゆれがあると入力権限が正しく判定できないため、正確に設定してください。
 
 ## 権限制御
 
-ログインユーザーの伝道会名が分かる場合、Dailytallyは以下のように制御します。
+ログインユーザーの情報に基づき、Dailytallyは以下のように制御します。
 
 - 自分の伝道会ページ: 入力可能
 - 他の伝道会ページ: 閲覧のみ
 - 合計ページ: 閲覧のみ
-- 管理ページ: 現時点では画面表示あり
+- 管理ページ: `x-dailytally-role` が `admin` の場合のみ表示
 
-Worker側でも保存時に同じ制限をかけています。別伝道会のデータを書き込もうとした場合、`403 Forbidden` を返します。
-
-SSO未連携、または `x-dailytally-fellowship` が空の場合は、移行期間用として従来どおり入力可能にしています。
+SSO未連携、または `x-dailytally-fellowship` が空の場合は、移行期間用として全権限（管理者相当）を付与しています。
 
 ## ユーザー情報API
 
@@ -65,7 +64,8 @@ GET /api/me
   "loginId": "ooedo01",
   "fellowship": "大江戸",
   "name": "山田太郎",
-  "email": "taro@example.com"
+  "email": "taro@example.com",
+  "role": "admin"
 }
 ```
 
@@ -76,13 +76,14 @@ SSOヘッダーが無い場合は空の値を返します。
   "loginId": "",
   "fellowship": "",
   "name": "",
-  "email": ""
+  "email": "",
+  "role": ""
 }
 ```
 
 ## フロントエンド側の直接指定
 
-開発や検証用に、HTML側で `window.DAILY_TALLY_USER` を先に定義しておくと、`/api/me` より優先して使います。
+開発や検証用に、HTML側で `window.DAILY_TALLY_USER` を先に定義しておくと、`/api/me` より優先して使います。管理者としてテストする場合は `role: "admin"` を含めてください。
 
 ```html
 <script>
@@ -90,7 +91,8 @@ SSOヘッダーが無い場合は空の値を返します。
     loginId: "ooedo01",
     fellowship: "大江戸",
     name: "山田太郎",
-    email: "taro@example.com"
+    email: "taro@example.com",
+    role: "admin"
   };
 </script>
 ```
@@ -123,4 +125,4 @@ SSOヘッダーが無い場合は空の値を返します。
 
 - DailytallyはSSOトークンの検証方法をまだ持っていません。認証済みリクエストだけがWorkerに届くよう、SSO側またはCloudflare Access側で保護してください。
 - `x-dailytally-fellowship` はユーザーが改ざんできない場所で付与してください。
-- 管理者権限の設計は未実装です。必要になったら、SSO側からロール情報を渡すヘッダーを追加してください。
+- 管理者権限を付与する場合は、SSO側で `x-dailytally-role: admin` ヘッダーを付与するように設定してください。

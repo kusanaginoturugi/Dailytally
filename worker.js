@@ -53,6 +53,7 @@ function createEmptyUser() {
     fellowship: "",
     name: "",
     email: "",
+    role: "",
   };
 }
 
@@ -212,6 +213,7 @@ function getCurrentUser(request) {
     fellowship: readSSOHeader(request, "x-dailytally-fellowship"),
     name: readSSOHeader(request, "x-dailytally-name"),
     email,
+    role: readSSOHeader(request, "x-dailytally-role"),
   };
 
   return Object.values(user).some((value) => String(value || "").trim() !== "") ? user : createEmptyUser();
