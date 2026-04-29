@@ -870,6 +870,8 @@ function fillSummaryHeaderRow(rowEl) {
       th.append("三期滅劫之霊木", document.createElement("br"), "代理奉納");
     } else if (item.key === "jigoku") {
       th.append("地獄曼荼羅會", document.createElement("br"), "代理奉納");
+    } else if (item.key === "kokujyo") {
+      th.append("黒縄供養紐・", document.createElement("br"), "水子萬灯會", document.createElement("br"), "代理奉納");
     } else if (item.key === "maso") {
       th.append("媽祖救航灯", document.createElement("br"), "代理奉納");
     } else if (item.key === "hokuto_segaki") {
