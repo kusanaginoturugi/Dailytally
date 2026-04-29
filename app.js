@@ -863,7 +863,7 @@ function fillSummaryHeaderRow(rowEl) {
     } else if (item.key === "goma") {
       th.append("この護摩供に", document.createElement("br"), "向けての", document.createElement("br"), "各種護摩木");
     } else if (item.key === "ryuge") {
-      th.append("三會龍華之", document.createElement("br"), "御柱");
+      th.textContent = "三會龍華之御柱";
     } else if (item.key === "ryuge_proxy") {
       th.append("三會龍華之御柱", document.createElement("br"), "代理奉納");
     } else if (item.key === "jigoku") {
