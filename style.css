@@ -425,7 +425,7 @@ main {
 
 @page {
   size: landscape;
-  margin: 8mm;
+  margin: 14mm 12mm 8mm;
 }
 
 @media print {
