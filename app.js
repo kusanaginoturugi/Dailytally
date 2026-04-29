@@ -875,7 +875,7 @@ function fillSummaryHeaderRow(rowEl) {
     } else if (item.key === "hokuto_segaki") {
       th.append("北斗施餓鬼供養", document.createElement("br"), "護摩木代理奉納");
     } else if (item.key === "inau") {
-      th.append("イナウ・なで玄武・", document.createElement("br"), "北斗鎮圧札");
+      th.append("イナウ・", document.createElement("br"), "なで玄武・", document.createElement("br"), "北斗鎮圧札");
     } else if (item.key === "junishinsho") {
       th.append("十二神将板・", document.createElement("br"), "龍樹滅業棒");
     } else if (item.key === "water") {
