@@ -873,7 +873,7 @@ function fillSummaryHeaderRow(rowEl) {
     } else if (item.key === "maso") {
       th.append("媽祖救航灯", document.createElement("br"), "代理奉納");
     } else if (item.key === "hokuto_segaki") {
-      th.append("北斗施餓鬼供養護摩木", document.createElement("br"), "代理奉納");
+      th.append("北斗施餓鬼供養", document.createElement("br"), "護摩木代理奉納");
     } else if (item.key === "inau") {
       th.append("イナウ・なで玄武・", document.createElement("br"), "北斗鎮圧札");
     } else if (item.key === "junishinsho") {
