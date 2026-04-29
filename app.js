@@ -48,7 +48,7 @@ const CEREMONY_CONFIGS = [
       { key: "ryuge", label: "三會龍華之御柱", summaryLabel: "三會龍華之御柱", unit: "本" },
       { key: "mizuko", label: "水子萬灯會", summaryLabel: "水子萬灯會", unit: "本" },
       { key: "jizo_fuda", label: "地蔵古佛札", summaryLabel: "地蔵古佛札", unit: "体" },
-      { key: "mayudama", label: "まゆ玉", summaryLabel: "まゆ玉", unit: "枚" },
+      { key: "mayudama", label: "まゆ玉", summaryLabel: "まゆ玉", unit: "個" },
       { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
       { key: "water", label: "御神水・命泉・泉・龍華水", summaryLabel: "御神水・命泉・泉・龍華水", unit: "箱" },
     ],
@@ -862,6 +862,20 @@ function fillSummaryHeaderRow(rowEl) {
       th.append("この護摩供に", document.createElement("br"), "向けての", document.createElement("br"), "天地免劫護摩木");
     } else if (item.key === "goma") {
       th.append("この護摩供に", document.createElement("br"), "向けての", document.createElement("br"), "各種護摩木");
+    } else if (item.key === "ryuge") {
+      th.append("三會龍華之", document.createElement("br"), "御柱");
+    } else if (item.key === "ryuge_proxy") {
+      th.append("三會龍華之御柱", document.createElement("br"), "代理奉納");
+    } else if (item.key === "jigoku") {
+      th.append("地獄曼荼羅會", document.createElement("br"), "代理奉納");
+    } else if (item.key === "maso") {
+      th.append("媽祖救航灯", document.createElement("br"), "代理奉納");
+    } else if (item.key === "hokuto_segaki") {
+      th.append("北斗施餓鬼供養護摩木", document.createElement("br"), "代理奉納");
+    } else if (item.key === "inau") {
+      th.append("イナウ・なで玄武・", document.createElement("br"), "北斗鎮圧札");
+    } else if (item.key === "junishinsho") {
+      th.append("十二神将板・", document.createElement("br"), "龍樹滅業棒");
     } else if (item.key === "water" && item.summaryLabel === "御神水・泉・龍華水等") {
       th.append("御神水・泉・", document.createElement("br"), "龍華水等");
     } else {
