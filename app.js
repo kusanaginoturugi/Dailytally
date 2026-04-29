@@ -1078,6 +1078,9 @@ function getTargetTotals() {
 function renderSummaryPage() {
   const template = document.getElementById("summaryPageTemplate");
   const content = template.content.cloneNode(true);
+  content.querySelector("#summaryPdfButton").addEventListener("click", () => {
+    window.print();
+  });
 
   content.querySelector("[data-summary-title]").textContent =
     `～第${getCeremonyNumber()}回${getActiveCeremonyConfig().name}　集計表～　報告数は累計数です`;

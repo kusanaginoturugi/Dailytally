@@ -245,6 +245,32 @@ main {
   color: #000000;
 }
 
+.summary-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.summary-pdf-button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 18px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.summary-pdf-button:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.summary-print-area {
+  background: #ffffff;
+}
+
 .summary-page .table-wrap {
   background: #ffffff;
 }
@@ -395,4 +421,48 @@ main {
   font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
   font-size: 18px;
   text-align: left;
+}
+
+@page {
+  size: landscape;
+  margin: 8mm;
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  header,
+  .tabs,
+  .summary-actions,
+  .input-page,
+  .admin-page {
+    display: none !important;
+  }
+
+  main {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .page-container {
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .summary-page .table-wrap {
+    overflow: visible;
+  }
+
+  .summary-table {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .summary-print-area {
+    break-inside: avoid;
+  }
 }

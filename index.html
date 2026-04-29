@@ -87,38 +87,43 @@
 
     <template id="summaryPageTemplate">
       <section class="summary-page">
-        <div class="table-wrap">
-          <table class="data-table summary-table" id="summaryTable">
-            <thead>
-              <tr class="summary-table-title-row">
-                <th data-summary-title data-summary-colspan colspan="10"></th>
-              </tr>
-              <tr class="summary-meta-row">
-                <th class="summary-meta-temple" colspan="3">
-                  <span class="summary-meta-label">聖院名:</span>
-                  <span class="summary-meta-value">聖明王院</span>
-                </th>
-                <th class="summary-meta-person" colspan="3">
-                  <span class="summary-meta-label">ご担当者名:</span>
-                  <span class="summary-meta-value">尾ノ上裕美</span>
-                </th>
-                <th class="summary-meta-phone" data-phone-colspan colspan="4">
-                  <span class="summary-meta-label">電話番号:</span>
-                  <span class="summary-meta-value">09041779036</span>
-                </th>
-              </tr>
-              <tr id="summaryHeaderRow"></tr>
-            </thead>
-            <tbody></tbody>
-            <tfoot>
-              <tr id="weeklyTotalRow"></tr>
-            </tfoot>
-          </table>
+        <div class="summary-actions">
+          <button id="summaryPdfButton" class="summary-pdf-button" type="button">PDF出力</button>
         </div>
-        <p class="summary-note">※水は種類を問わず、箱数で記入(1箱20リットルとして計算願います)</p>
+        <div id="summaryPrintArea" class="summary-print-area">
+          <div class="table-wrap">
+            <table class="data-table summary-table" id="summaryTable">
+              <thead>
+                <tr class="summary-table-title-row">
+                  <th data-summary-title data-summary-colspan colspan="10"></th>
+                </tr>
+                <tr class="summary-meta-row">
+                  <th class="summary-meta-temple" colspan="3">
+                    <span class="summary-meta-label">聖院名:</span>
+                    <span class="summary-meta-value">聖明王院</span>
+                  </th>
+                  <th class="summary-meta-person" colspan="3">
+                    <span class="summary-meta-label">ご担当者名:</span>
+                    <span class="summary-meta-value">尾ノ上裕美</span>
+                  </th>
+                  <th class="summary-meta-phone" data-phone-colspan colspan="4">
+                    <span class="summary-meta-label">電話番号:</span>
+                    <span class="summary-meta-value">09041779036</span>
+                  </th>
+                </tr>
+                <tr id="summaryHeaderRow"></tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot>
+                <tr id="weeklyTotalRow"></tr>
+              </tfoot>
+            </table>
+          </div>
+          <p class="summary-note">※水は種類を問わず、箱数で記入(1箱20リットルとして計算願います)</p>
+        </div>
       </section>
     </template>
 
-    <script src="app.js?v=20260429-ceremonies"></script>
+    <script src="app.js?v=20260429-pdf"></script>
   </body>
 </html>
