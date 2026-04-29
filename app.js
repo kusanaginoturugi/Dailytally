@@ -866,6 +866,8 @@ function fillSummaryHeaderRow(rowEl) {
       th.textContent = "三會龍華之御柱";
     } else if (item.key === "ryuge_proxy") {
       th.append("三會龍華之御柱", document.createElement("br"), "代理奉納");
+    } else if (item.key === "sanki_proxy") {
+      th.append("三期滅劫之霊木", document.createElement("br"), "代理奉納");
     } else if (item.key === "jigoku") {
       th.append("地獄曼荼羅會", document.createElement("br"), "代理奉納");
     } else if (item.key === "maso") {
@@ -876,8 +878,16 @@ function fillSummaryHeaderRow(rowEl) {
       th.append("イナウ・なで玄武・", document.createElement("br"), "北斗鎮圧札");
     } else if (item.key === "junishinsho") {
       th.append("十二神将板・", document.createElement("br"), "龍樹滅業棒");
-    } else if (item.key === "water" && item.summaryLabel === "御神水・泉・龍華水等") {
-      th.append("御神水・泉・", document.createElement("br"), "龍華水等");
+    } else if (item.key === "water") {
+      if (item.summaryLabel === "御神水・命泉・泉・龍華水・禄存五聖杯") {
+        th.append("御神水・命泉・", document.createElement("br"), "泉・龍華水・", document.createElement("br"), "禄存五聖杯");
+      } else if (item.summaryLabel === "御神水・泉・龍華水等") {
+        th.append("御神水・泉・", document.createElement("br"), "龍華水等");
+      } else if (item.summaryLabel === "御神水・命泉・泉・龍華水") {
+        th.append("御神水・命泉・", document.createElement("br"), "泉・龍華水");
+      } else {
+        th.textContent = item.summaryLabel || item.label;
+      }
     } else {
       th.textContent = item.summaryLabel || item.label;
     }
