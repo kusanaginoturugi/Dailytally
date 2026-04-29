@@ -224,6 +224,11 @@ function canWriteFellowship(request, fellowship) {
   return !user.fellowship || user.fellowship === fellowship;
 }
 
+function canWriteAdmin(request) {
+  const user = getCurrentUser(request);
+  return !user.fellowship || user.role === "admin";
+}
+
 async function readState(db) {
   const row = await db.prepare("SELECT data FROM app_state WHERE id = ?").bind(STATE_ID).first();
   return normalizeState(row ? JSON.parse(row.data) : null);
@@ -297,7 +302,11 @@ async function handleStatePatch(request, env) {
       }
       ceremonyData.fellowshipTargets[patch.fellowship][patch.itemKey] = toNumber(patch.value);
     } else {
-      state.targets[patch.itemKey] = toNumber(patch.value);
+      if (!canWriteAdmin(request)) {
+        return jsonResponse({ error: "Forbidden" }, { status: 403 });
+      }
+      const ceremonyData = getCeremonyData(state, patch.ceremonyId);
+      ceremonyData.targets[patch.itemKey] = toNumber(patch.value);
     }
   } else if (patch.type === "users") {
     state.users = Array.isArray(patch.users) ? patch.users.map((user) => ({ ...createEmptyUser(), ...user })) : [];

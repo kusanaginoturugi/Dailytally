@@ -617,6 +617,7 @@ function hasTargetValues(currentState) {
       Object.values(targets || {}).some((value) => Number(value) > 0),
     );
   const hasCeremonyTargets = Object.values(currentState.ceremonyData || {}).some((ceremonyData) =>
+    Object.values(ceremonyData?.targets || {}).some((value) => Number(value) > 0) ||
     Object.values(ceremonyData?.fellowshipTargets || {}).some((targets) =>
       Object.values(targets || {}).some((value) => Number(value) > 0),
     ),
@@ -713,6 +714,20 @@ function setTargetValue(name, itemKey, value) {
   patchState({ type: "target", ceremonyId: getActiveCeremonyConfig().id, fellowship: name, itemKey, value: normalizedValue });
 }
 
+function usesSummaryTargets() {
+  return getActiveCeremonyConfig().id === DEFAULT_CEREMONY_ID;
+}
+
+function getSummaryTargetValue(itemKey) {
+  return Number(getActiveCeremonyData().targets?.[itemKey]) || 0;
+}
+
+function setSummaryTargetValue(itemKey, value) {
+  const normalizedValue = Math.max(0, Number(value) || 0);
+  getActiveCeremonyData().targets[itemKey] = normalizedValue;
+  patchState({ type: "target", ceremonyId: getActiveCeremonyConfig().id, itemKey, value: normalizedValue });
+}
+
 function canEditTargets() {
   return true;
 }
@@ -755,6 +770,21 @@ function createTargetInput(name, itemKey, currentValue) {
   input.addEventListener("input", () => {
     input.value = input.value.replace(/\D/g, "");
     setTargetValue(name, itemKey, input.value);
+  });
+  return input;
+}
+
+function createSummaryTargetInput(itemKey, currentValue) {
+  const input = document.createElement("input");
+  input.className = "target-input";
+  input.type = "text";
+  input.inputMode = "numeric";
+  input.pattern = "[0-9]*";
+  input.value = currentValue === 0 ? "" : String(currentValue);
+  selectOnFocus(input);
+  input.addEventListener("input", () => {
+    input.value = input.value.replace(/\D/g, "");
+    setSummaryTargetValue(itemKey, input.value);
   });
   return input;
 }
@@ -910,30 +940,32 @@ function renderInputPage(name) {
 
   fillHeaderRow(content.querySelector("#inputHeaderRow"));
   const tbody = content.querySelector("tbody");
-  const targetRow = document.createElement("tr");
-  targetRow.className = "target-row";
+  if (!usesSummaryTargets()) {
+    const targetRow = document.createElement("tr");
+    targetRow.className = "target-row";
 
-  const targetLabelCell = document.createElement("th");
-  targetLabelCell.textContent = "目標";
-  targetRow.appendChild(targetLabelCell);
+    const targetLabelCell = document.createElement("th");
+    targetLabelCell.textContent = "目標";
+    targetRow.appendChild(targetLabelCell);
 
-  const targetsEditable = canEditTargetRow(name);
+    const targetsEditable = canEditTargetRow(name);
 
-  getActiveItems().forEach((item) => {
-    const td = document.createElement("td");
-    const currentValue = getTargetValue(name, item.key);
+    getActiveItems().forEach((item) => {
+      const td = document.createElement("td");
+      const currentValue = getTargetValue(name, item.key);
 
-    if (targetsEditable) {
-      td.appendChild(createTargetInput(name, item.key, currentValue));
-      appendUnit(td, item.unit);
-    } else {
-      appendReadonlyValue(td, currentValue, item.unit);
-    }
+      if (targetsEditable) {
+        td.appendChild(createTargetInput(name, item.key, currentValue));
+        appendUnit(td, item.unit);
+      } else {
+        appendReadonlyValue(td, currentValue, item.unit);
+      }
 
-    targetRow.appendChild(td);
-  });
+      targetRow.appendChild(td);
+    });
 
-  tbody.appendChild(targetRow);
+    tbody.appendChild(targetRow);
+  }
 
   getWeekDates().forEach((date) => {
     const tr = document.createElement("tr");
@@ -1154,8 +1186,18 @@ function renderSummaryPage() {
 
   getActiveItems().forEach((item) => {
     const td = document.createElement("td");
-    const value = targetTotals[item.key] || "";
-    td.innerHTML = `<span class="summary-value">${value}</span><span class="summary-unit">${item.unit}</span>`;
+    const value = usesSummaryTargets() ? getSummaryTargetValue(item.key) : targetTotals[item.key];
+
+    if (usesSummaryTargets() && canAccessAdmin()) {
+      td.appendChild(createSummaryTargetInput(item.key, value));
+      const unitEl = document.createElement("span");
+      unitEl.className = "summary-unit";
+      unitEl.textContent = item.unit;
+      td.appendChild(unitEl);
+    } else {
+      td.innerHTML = `<span class="summary-value">${value || ""}</span><span class="summary-unit">${item.unit}</span>`;
+    }
+
     targetRow.appendChild(td);
   });
 
