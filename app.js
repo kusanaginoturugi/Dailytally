@@ -834,6 +834,10 @@ function fillHeaderRow(rowEl) {
       th.append("天地免劫", document.createElement("br"), "護摩木");
     } else if (item.key === "ryuge") {
       th.append("三會龍華", document.createElement("br"), "之御柱");
+    } else if (item.key === "sanki_proxy") {
+      th.append("三期滅劫之霊木", document.createElement("br"), "代理奉納");
+    } else if (item.key === "ryuge_proxy") {
+      th.append("三會龍華之御柱", document.createElement("br"), "代理奉納");
     } else {
       th.textContent = item.label;
     }
