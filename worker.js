@@ -9,7 +9,6 @@ const DEFAULT_ITEMS = [
   "zaitama",
   "symbols",
   "water",
-  "extra1",
 ];
 
 const FELLOWSHIP_NAMES = ["大江戸", "お台場", "羽田", "かながわ", "富士山", "駿天", "埼玉", "千葉", "山梨"];

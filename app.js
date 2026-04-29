@@ -16,7 +16,6 @@ const CEREMONY_CONFIGS = [
       { key: "zaitama", label: "明王招財玉", summaryLabel: "明王招財玉", unit: "組" },
       { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
       { key: "water", label: "御神水・泉・龍華水等", summaryLabel: "御神水・泉・龍華水等", unit: "箱" },
-      { key: "extra1", label: "追加項目", summaryLabel: "追加項目", unit: "" },
     ],
   },
   {
@@ -700,7 +699,7 @@ function setTargetValue(name, itemKey, value) {
 }
 
 function canEditTargets() {
-  return getActiveCeremonyData().weekStart && toISODate(new Date()) === getActiveCeremonyData().weekStart;
+  return true;
 }
 
 function canEditDate(dateId) {
