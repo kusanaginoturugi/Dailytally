@@ -89,7 +89,7 @@ const CEREMONY_CONFIGS = [
   {
     id: "rokuson-hoju",
     name: "禄存宝珠護摩供",
-    nextNumber: 40,
+    nextNumber: 41,
     seekerStart: "",
     items: [
       { key: "seekers", label: "得道者数", summaryLabel: "得道者数", unit: "人" },
@@ -951,9 +951,7 @@ function renderAdminPage() {
   const ceremonySelect = content.querySelector("#ceremonySelect");
   const weekStartInput = content.querySelector("#weekStart");
   const weekEndInput = content.querySelector("#weekEnd");
-  const itemCountInput = content.querySelector("#itemCount");
   const seekerStartInput = content.querySelector("#seekerStart");
-  const ceremonyNumberInput = content.querySelector("#ceremonyNumber");
   const ceremonyData = getActiveCeremonyData();
 
   CEREMONY_CONFIGS.forEach((ceremony) => {
@@ -966,10 +964,7 @@ function renderAdminPage() {
   ceremonySelect.value = getActiveCeremonyConfig().id;
   weekStartInput.value = ceremonyData.weekStart;
   weekEndInput.value = ceremonyData.weekEnd;
-  itemCountInput.value = String(getActiveItems().length);
-  itemCountInput.disabled = true;
   seekerStartInput.value = ceremonyData.seekerStart;
-  ceremonyNumberInput.value = String(getCeremonyNumber());
 
   ceremonySelect.addEventListener("change", () => {
     state.settings.ceremonyId = ceremonySelect.value;
