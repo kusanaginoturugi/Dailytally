@@ -283,6 +283,56 @@ function formatShortDate(iso) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+function isValidISODate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) {
+    return false;
+  }
+  const date = parseISODate(value);
+  return !Number.isNaN(date.getTime()) && toISODate(date) === value;
+}
+
+function parseAdminDateInput(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const normalized = trimmed.replace(/[.／]/g, "/").replace(/-/g, "/");
+  const fullDate = normalized.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+  const shortDate = normalized.match(/^(\d{1,2})\/(\d{1,2})$/);
+  const year = fullDate ? Number(fullDate[1]) : new Date().getFullYear();
+  const month = Number(fullDate ? fullDate[2] : shortDate?.[1]);
+  const day = Number(fullDate ? fullDate[3] : shortDate?.[2]);
+
+  if (!month || !day) {
+    return "";
+  }
+
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return "";
+  }
+
+  return toISODate(date);
+}
+
+function ensureCeremonyDates(ceremonyData) {
+  const today = toISODate(new Date());
+  const currentYear = new Date().getFullYear();
+
+  if (!isValidISODate(ceremonyData.weekStart) || parseISODate(ceremonyData.weekStart).getFullYear() < currentYear) {
+    ceremonyData.weekStart = today;
+  }
+
+  if (!isValidISODate(ceremonyData.weekEnd) || parseISODate(ceremonyData.weekEnd).getFullYear() < currentYear) {
+    ceremonyData.weekEnd = addDaysISO(ceremonyData.weekStart, 7);
+  }
+
+  if (ceremonyData.weekEnd < ceremonyData.weekStart) {
+    ceremonyData.weekEnd = addDaysISO(ceremonyData.weekStart, 7);
+  }
+}
+
 function getCeremonyNumber() {
   return getActiveCeremonyConfig().nextNumber;
 }
@@ -300,9 +350,10 @@ function getCeremonyConfig(ceremonyId) {
 }
 
 function createEmptyCeremonyData(ceremonyConfig = getActiveCeremonyConfig()) {
+  const today = toISODate(new Date());
   return {
-    weekStart: "",
-    weekEnd: "",
+    weekStart: today,
+    weekEnd: addDaysISO(today, 7),
     seekerStart: ceremonyConfig.seekerStart || "",
     fellowships: Object.fromEntries(fellowshipNames.map((name) => [name, {}])),
     targets: createEmptyTargets(),
@@ -464,8 +515,7 @@ function normalizeStateShape(targetState) {
     }
 
     const ceremonyData = targetState.ceremonyData[ceremony.id];
-    ceremonyData.weekStart = ceremonyData.weekStart || "";
-    ceremonyData.weekEnd = ceremonyData.weekEnd || "";
+    ensureCeremonyDates(ceremonyData);
     ceremonyData.seekerStart = ceremonyData.seekerStart ?? (ceremony.seekerStart || "");
     ceremonyData.fellowships = ceremonyData.fellowships || {};
     ceremonyData.targets = {
@@ -1042,6 +1092,7 @@ function renderAdminPage() {
   const weekEndInput = content.querySelector("#weekEnd");
   const seekerStartInput = content.querySelector("#seekerStart");
   const ceremonyData = getActiveCeremonyData();
+  ensureCeremonyDates(ceremonyData);
 
   CEREMONY_CONFIGS.forEach((ceremony) => {
     const option = document.createElement("option");
@@ -1051,9 +1102,9 @@ function renderAdminPage() {
   });
 
   ceremonySelect.value = getActiveCeremonyConfig().id;
-  weekStartInput.value = ceremonyData.weekStart;
-  weekEndInput.value = ceremonyData.weekEnd;
-  seekerStartInput.value = ceremonyData.seekerStart;
+  weekStartInput.value = formatShortDate(ceremonyData.weekStart);
+  weekEndInput.value = formatShortDate(ceremonyData.weekEnd);
+  seekerStartInput.value = formatShortDate(ceremonyData.seekerStart);
 
   ceremonySelect.addEventListener("change", () => {
     state.settings.ceremonyId = ceremonySelect.value;
@@ -1063,27 +1114,31 @@ function renderAdminPage() {
 
   weekStartInput.addEventListener("change", () => {
     const activeData = getActiveCeremonyData();
-    activeData.weekStart = weekStartInput.value || "";
-    if (activeData.weekStart && (!activeData.weekEnd || activeData.weekEnd < activeData.weekStart)) {
-      activeData.weekEnd = activeData.weekStart;
-      weekEndInput.value = activeData.weekEnd;
+    const nextWeekStart = parseAdminDateInput(weekStartInput.value) || toISODate(new Date());
+    activeData.weekStart = nextWeekStart;
+    activeData.weekEnd = addDaysISO(nextWeekStart, 7);
+    weekStartInput.value = formatShortDate(activeData.weekStart);
+    weekEndInput.value = formatShortDate(activeData.weekEnd);
+    if (activeData.seekerStart) {
+      seekerStartInput.value = formatShortDate(activeData.seekerStart);
     }
-    ceremonyNumberInput.value = String(getCeremonyNumber());
     saveSettings();
   });
 
   weekEndInput.addEventListener("change", () => {
     const activeData = getActiveCeremonyData();
-    activeData.weekEnd = weekEndInput.value || "";
+    activeData.weekEnd = parseAdminDateInput(weekEndInput.value) || addDaysISO(activeData.weekStart, 7);
     if (activeData.weekStart && activeData.weekEnd && activeData.weekEnd < activeData.weekStart) {
-      activeData.weekEnd = activeData.weekStart;
-      weekEndInput.value = activeData.weekEnd;
+      activeData.weekEnd = addDaysISO(activeData.weekStart, 7);
     }
+    weekEndInput.value = formatShortDate(activeData.weekEnd);
     saveSettings();
   });
 
   seekerStartInput.addEventListener("change", () => {
-    getActiveCeremonyData().seekerStart = seekerStartInput.value || "";
+    const activeData = getActiveCeremonyData();
+    activeData.seekerStart = parseAdminDateInput(seekerStartInput.value);
+    seekerStartInput.value = formatShortDate(activeData.seekerStart);
     saveSettings();
   });
 

@@ -30,13 +30,38 @@ const MIN_ITEM_COUNT = 1;
 const MAX_ITEM_COUNT = DEFAULT_ITEMS.length;
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 function addDaysISO(iso, days) {
   const date = new Date(`${iso}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function isValidISODate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) {
+    return false;
+  }
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function ensureCeremonyDates(ceremonyData) {
+  const today = todayISO();
+  const currentYear = Number(today.slice(0, 4));
+
+  if (!isValidISODate(ceremonyData.weekStart) || Number(ceremonyData.weekStart.slice(0, 4)) < currentYear) {
+    ceremonyData.weekStart = today;
+  }
+
+  if (!isValidISODate(ceremonyData.weekEnd) || Number(ceremonyData.weekEnd.slice(0, 4)) < currentYear) {
+    ceremonyData.weekEnd = addDaysISO(ceremonyData.weekStart, 7);
+  }
+
+  if (ceremonyData.weekEnd < ceremonyData.weekStart) {
+    ceremonyData.weekEnd = addDaysISO(ceremonyData.weekStart, 7);
+  }
 }
 
 function createEmptyTargets() {
@@ -61,7 +86,7 @@ function createDefaultState() {
   return {
     settings: {
       weekStart: todayISO(),
-      weekEnd: addDaysISO(todayISO(), 6),
+      weekEnd: addDaysISO(todayISO(), 7),
       itemCount: 10,
       activeTab: "admin",
       seekerStart: "2026-04-28",
@@ -92,10 +117,10 @@ function normalizeState(rawState) {
     state.settings.ceremonyName = "八大明王護摩供";
   }
   if (!state.settings.weekEnd) {
-    state.settings.weekEnd = addDaysISO(state.settings.weekStart, 6);
+    state.settings.weekEnd = addDaysISO(state.settings.weekStart, 7);
   }
   if (state.settings.weekEnd < state.settings.weekStart) {
-    state.settings.weekEnd = state.settings.weekStart;
+    state.settings.weekEnd = addDaysISO(state.settings.weekStart, 7);
   }
   state.settings.schemaVersion = SETTINGS_SCHEMA_VERSION;
   state.users = Array.isArray(state.users) ? state.users.map((user) => ({ ...createEmptyUser(), ...user })) : [];
@@ -136,8 +161,8 @@ function normalizeState(rawState) {
   CEREMONY_IDS.forEach((ceremonyId) => {
     if (!state.ceremonyData[ceremonyId]) {
       state.ceremonyData[ceremonyId] = {
-        weekStart: "",
-        weekEnd: "",
+        weekStart: todayISO(),
+        weekEnd: addDaysISO(todayISO(), 7),
         seekerStart: ceremonyId === DEFAULT_CEREMONY_ID ? "2026-04-28" : "",
         fellowships: Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, {}])),
         targets: createEmptyTargets(),
@@ -146,8 +171,7 @@ function normalizeState(rawState) {
     }
 
     const ceremonyData = state.ceremonyData[ceremonyId];
-    ceremonyData.weekStart = ceremonyData.weekStart || "";
-    ceremonyData.weekEnd = ceremonyData.weekEnd || "";
+    ensureCeremonyDates(ceremonyData);
     ceremonyData.seekerStart = ceremonyData.seekerStart ?? "";
     ceremonyData.fellowships = ceremonyData.fellowships || {};
     ceremonyData.targets = {
@@ -252,14 +276,15 @@ function getCeremonyData(state, ceremonyId) {
   const normalizedCeremonyId = CEREMONY_IDS.includes(ceremonyId) ? ceremonyId : state.settings.ceremonyId;
   if (!state.ceremonyData[normalizedCeremonyId]) {
     state.ceremonyData[normalizedCeremonyId] = {
-      weekStart: "",
-      weekEnd: "",
+      weekStart: todayISO(),
+      weekEnd: addDaysISO(todayISO(), 7),
       seekerStart: "",
       fellowships: Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, {}])),
       targets: createEmptyTargets(),
       fellowshipTargets: createEmptyFellowshipTargets(),
     };
   }
+  ensureCeremonyDates(state.ceremonyData[normalizedCeremonyId]);
   return state.ceremonyData[normalizedCeremonyId];
 }
 
@@ -277,6 +302,7 @@ async function handleStatePatch(request, env) {
       ceremonyData.weekStart = patch.ceremonySettings.weekStart || "";
       ceremonyData.weekEnd = patch.ceremonySettings.weekEnd || "";
       ceremonyData.seekerStart = patch.ceremonySettings.seekerStart || "";
+      ensureCeremonyDates(ceremonyData);
     }
   } else if (patch.type === "value") {
     const { fellowship, dateId, itemKey } = patch;
