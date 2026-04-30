@@ -1164,6 +1164,77 @@ function getSummaryPdfFileName() {
   return `第${getCeremonyNumber()}回${ceremony}_集計表.pdf`;
 }
 
+function getHeaderSegmentsForPdf(cell) {
+  const segments = [];
+  let current = "";
+  let dateText = "";
+
+  cell.childNodes.forEach((node) => {
+    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "BR") {
+      if (current) {
+        segments.push(current);
+        current = "";
+      }
+      return;
+    }
+
+    if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains("horizontal-date")) {
+      dateText = node.textContent.trim();
+      return;
+    }
+
+    current += node.textContent || "";
+  });
+
+  if (current) {
+    segments.push(current);
+  }
+
+  return { segments: segments.map((segment) => segment.trim()).filter(Boolean), dateText };
+}
+
+function prepareSummaryPdfClone(clonedDocument) {
+  const clonedPrintArea = clonedDocument.getElementById("summaryPrintArea");
+  if (!clonedPrintArea) {
+    return;
+  }
+
+  clonedPrintArea.classList.add("summary-pdf-capture");
+  clonedPrintArea.querySelectorAll("input.target-input").forEach((input) => {
+    const value = clonedDocument.createElement("span");
+    value.className = "summary-value pdf-target-value";
+    value.textContent = input.value || "";
+    input.replaceWith(value);
+  });
+
+  clonedPrintArea.querySelectorAll(".summary-table thead tr:last-child th:not(:first-child)").forEach((cell) => {
+    const { segments, dateText } = getHeaderSegmentsForPdf(cell);
+    const wrapper = clonedDocument.createElement("span");
+    wrapper.className = "pdf-vertical-cell";
+
+    segments.forEach((segment) => {
+      const line = clonedDocument.createElement("span");
+      line.className = "pdf-vertical-line";
+      Array.from(segment).forEach((character) => {
+        const char = clonedDocument.createElement("span");
+        char.className = "pdf-vertical-char";
+        char.textContent = character;
+        line.appendChild(char);
+      });
+      wrapper.appendChild(line);
+    });
+
+    if (dateText) {
+      const date = clonedDocument.createElement("span");
+      date.className = "horizontal-date pdf-horizontal-date";
+      date.textContent = dateText;
+      wrapper.appendChild(date);
+    }
+
+    cell.replaceChildren(wrapper);
+  });
+}
+
 async function saveSummaryPdf(button) {
   const printArea = document.getElementById("summaryPrintArea");
   if (!printArea || !window.html2canvas || !window.jspdf?.jsPDF) {
@@ -1180,6 +1251,7 @@ async function saveSummaryPdf(button) {
       backgroundColor: "#ffffff",
       scale: 2,
       useCORS: true,
+      onclone: prepareSummaryPdfClone,
     });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
