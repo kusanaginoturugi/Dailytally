@@ -66,7 +66,7 @@ const CEREMONY_CONFIGS = [
       { key: "sanki_proxy", label: "三期滅劫之霊木代理奉納", summaryLabel: "三期滅劫之霊木代理奉納", unit: "本" },
       { key: "ryuge_proxy", label: "三會龍華之御柱代理奉納", summaryLabel: "三會龍華之御柱代理奉納", unit: "本" },
       { key: "segaki_ita", label: "施餓鬼板", summaryLabel: "施餓鬼板", unit: "枚" },
-      { key: "symbols", label: "各種符", summaryLabel: "各種符(施餓鬼供養符も含む)", unit: "枚" },
+      { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
       { key: "water", label: "御神水・命泉・泉・龍華水", summaryLabel: "御神水・命泉・泉・龍華水", unit: "箱" },
     ],
   },
@@ -135,7 +135,7 @@ const CEREMONY_CONFIGS = [
       { key: "ryuge_proxy", label: "三會龍華之御柱代理奉納", summaryLabel: "三會龍華之御柱代理奉納", unit: "本" },
       { key: "kagami", label: "鏡符・五雷懺悔鏡代理奉納", summaryLabel: "鏡符・五雷懺悔鏡代理奉納", unit: "枚" },
       { key: "myozen_fuda", label: "妙善閻魔天王札", summaryLabel: "妙善閻魔天王札", unit: "体" },
-      { key: "symbols", label: "各種符", summaryLabel: "各種符(大國陰陽符含)", unit: "枚" },
+      { key: "symbols", label: "各種符", summaryLabel: "各種符", unit: "枚" },
       { key: "water", label: "御神水・命泉・泉・龍華水等", summaryLabel: "御神水・命泉・泉・龍華水等", unit: "箱" },
     ],
   },
@@ -971,6 +971,8 @@ function fillSummaryHeaderRow(rowEl) {
         th.append("御神水・命泉・", document.createElement("br"), "泉・龍華水・", document.createElement("br"), "禄存五聖杯");
       } else if (item.summaryLabel === "御神水・泉・龍華水等") {
         th.append("御神水・泉・", document.createElement("br"), "龍華水等");
+      } else if (item.summaryLabel === "御神水・命泉・泉・龍華水等") {
+        th.append("御神水・命泉・", document.createElement("br"), "泉・龍華水等");
       } else if (item.summaryLabel === "御神水・命泉・泉・龍華水") {
         th.append("御神水・命泉・", document.createElement("br"), "泉・龍華水");
       } else {
@@ -1266,6 +1268,9 @@ function prepareSummaryPdfClone(clonedDocument) {
     const { segments, dateText } = getHeaderSegmentsForPdf(cell);
     const wrapper = clonedDocument.createElement("span");
     wrapper.className = "pdf-vertical-cell";
+    if (segments.join("").includes("御神水")) {
+      wrapper.classList.add("pdf-water-cell");
+    }
 
     segments.forEach((segment) => {
       const line = clonedDocument.createElement("span");

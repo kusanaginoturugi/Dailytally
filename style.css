@@ -291,6 +291,7 @@ main {
   gap: 4px;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .pdf-vertical-line {
@@ -303,6 +304,15 @@ main {
 
 .pdf-vertical-char {
   display: block;
+}
+
+.pdf-water-cell {
+  gap: 2px;
+  font-size: 15px;
+}
+
+.pdf-water-cell .pdf-vertical-line {
+  line-height: 1;
 }
 
 .pdf-horizontal-date {
