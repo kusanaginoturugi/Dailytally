@@ -82,6 +82,15 @@ authentik側のProvider設定:
 - `大江戸` などの伝道会グループが付いているユーザーはその伝道会の入力担当
 - どのグループも付いていないユーザーは閲覧や更新を許可しない
 
+### 運用チェック
+
+1. authentikで対象ユーザーに `dailytally-admin` か伝道会グループを付ける
+2. authentik側でグループ変更をしたら、authentikのログアウトではなく `https://<デプロイ先>/auth/logout` を開く
+3. もう一度 `https://<デプロイ先>/auth/login` から入り直す
+4. `https://<デプロイ先>/api/me` で `role` と `fellowship` を確認する
+5. うまく権限が変わらないときは、authentikのグループ付与より先にDailytally側のセッション切り替えを疑う
+6. 管理者として入れたら `https://<デプロイ先>/api/report-pdf` でPDF生成を確認する
+
 ## Cloudflare D1設定
 
 1. 依存関係をインストール
