@@ -1188,7 +1188,7 @@ async function saveSummaryPdf(button) {
     const pageHeight = pdf.internal.pageSize.getHeight();
     const maxWidth = pageWidth - margin * 2;
     const maxHeight = pageHeight - margin * 2;
-    const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height) * 0.96;
+    const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
     const imageWidth = canvas.width * ratio;
     const imageHeight = canvas.height * ratio;
     const x = (pageWidth - imageWidth) / 2;
