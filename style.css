@@ -276,6 +276,15 @@ main {
   background: #ffffff;
 }
 
+.summary-pdf-capture .table-wrap {
+  overflow: visible;
+}
+
+.summary-pdf-capture .summary-table input.target-input {
+  min-height: 30px;
+  line-height: 30px;
+}
+
 .summary-page .table-wrap {
   background: #ffffff;
 }

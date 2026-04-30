@@ -1176,10 +1176,20 @@ async function saveSummaryPdf(button) {
   button.textContent = "保存中...";
 
   try {
+    const tableWrap = printArea.querySelector(".table-wrap");
+    const captureWidth = Math.max(printArea.scrollWidth, tableWrap?.scrollWidth || 0, printArea.offsetWidth);
+    const captureHeight = Math.max(printArea.scrollHeight, printArea.offsetHeight);
     const canvas = await window.html2canvas(printArea, {
       backgroundColor: "#ffffff",
+      height: captureHeight,
       scale: 2,
       useCORS: true,
+      width: captureWidth,
+      windowWidth: captureWidth,
+      onclone: (clonedDocument) => {
+        const clonedPrintArea = clonedDocument.getElementById("summaryPrintArea");
+        clonedPrintArea?.classList.add("summary-pdf-capture");
+      },
     });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
