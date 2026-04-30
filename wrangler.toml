@@ -1,10 +1,18 @@
 name = "dailytally"
 main = "worker.js"
 compatibility_date = "2026-04-27"
+compatibility_flags = [ "nodejs_compat", "nodejs_compat_v2" ]
+
+[triggers]
+crons = [ "*/15 * * * *" ]
+
+[browser]
+binding = "BROWSER"
 
 [assets]
 directory = "."
 binding = "ASSETS"
+run_worker_first = [ "/*" ]
 
 [[d1_databases]]
 binding = "DB"

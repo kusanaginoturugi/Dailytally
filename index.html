@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>毎日集計</title>
-    <link rel="stylesheet" href="style.css?v=20260428-2334" />
+    <link rel="stylesheet" href="style.css?v=20260430-report-auto" />
   </head>
   <body>
     <header>
@@ -56,6 +56,38 @@
             <input id="seekerStart" type="text" inputmode="numeric" placeholder="mm/dd" />
           </label>
         </div>
+        <section class="report-settings" aria-label="オンライン報告設定">
+          <div class="report-settings-header">
+            <h2>オンライン報告</h2>
+            <label class="toggle-label">
+              <input id="reportEnabled" type="checkbox" />
+              自動送信
+            </label>
+          </div>
+          <div class="report-settings-grid">
+            <label>
+              送信時刻
+              <input id="reportSendTime" type="time" />
+            </label>
+            <label>
+              送信者名
+              <input id="reportSenderName" type="text" />
+            </label>
+            <label>
+              伝道会名
+              <input id="reportBranchName" type="text" />
+            </label>
+            <label>
+              伝道会コード
+              <input id="reportBranchCode" type="text" inputmode="numeric" />
+            </label>
+            <label>
+              通知先メール
+              <input id="reportNotifyEmail" type="email" />
+            </label>
+          </div>
+          <p id="reportStatus" class="report-status"></p>
+        </section>
         <section class="user-list-section" aria-label="ユーザー一覧">
           <div class="user-list-header">
             <h2>ユーザー一覧</h2>
@@ -118,6 +150,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="app.js?v=20260430-admin-dates"></script>
+    <script src="app.js?v=20260430-report-auto"></script>
   </body>
 </html>

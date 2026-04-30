@@ -1,3 +1,5 @@
+import puppeteer from "@cloudflare/puppeteer";
+
 const DEFAULT_ITEMS = [
   "seekers",
   "tenchi",
@@ -9,6 +11,19 @@ const DEFAULT_ITEMS = [
   "zaitama",
   "symbols",
   "water",
+];
+
+const REPORT_ITEMS = [
+  { key: "seekers", summaryLabel: "得道者数", unit: "人" },
+  { key: "tenchi", summaryLabel: "この護摩供に向けての天地免劫護摩木", unit: "本" },
+  { key: "goma", summaryLabel: "この護摩供に向けての各種護摩木", unit: "本" },
+  { key: "nyoi", summaryLabel: "八大明王如意棒", unit: "本" },
+  { key: "sanki", summaryLabel: "三期滅劫之霊木", unit: "本" },
+  { key: "ryuge", summaryLabel: "三會龍華之御柱", unit: "本" },
+  { key: "fuda", summaryLabel: "八大明王札", unit: "体" },
+  { key: "zaitama", summaryLabel: "明王招財玉", unit: "組" },
+  { key: "symbols", summaryLabel: "各種符", unit: "枚" },
+  { key: "water", summaryLabel: "御神水・泉・龍華水等", unit: "箱" },
 ];
 
 const FELLOWSHIP_NAMES = ["大江戸", "お台場", "羽田", "かながわ", "富士山", "駿天", "埼玉", "千葉", "山梨"];
@@ -28,9 +43,17 @@ const STATE_ID = "main";
 const SETTINGS_SCHEMA_VERSION = 2;
 const MIN_ITEM_COUNT = 1;
 const MAX_ITEM_COUNT = DEFAULT_ITEMS.length;
+const FINAL_ROW_ID = "__final__";
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const DEFAULT_REPORT_BRANCH_CODE = "99300";
+const SESSION_COOKIE_NAME = "dailytally_session";
+const OIDC_COOKIE_NAME = "dailytally_oidc";
+const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+const TENDO_LOGIN_URL = "https://tendo.net/advanced/login.php?url=/advanced/index.php";
+const TENDO_ONLINE_URL = "https://tendo.net/advanced/online.php";
 
 function todayISO() {
-  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return new Date(Date.now() + JST_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 function addDaysISO(iso, days) {
@@ -82,6 +105,22 @@ function createEmptyUser() {
   };
 }
 
+function createDefaultReportAutomation() {
+  return {
+    enabled: false,
+    sendTime: "22:00",
+    senderName: "聖明王院事務局",
+    branchName: "聖明王院",
+    branchCode: DEFAULT_REPORT_BRANCH_CODE,
+    notifyEmail: "jimmyouou@gmail.com",
+    lastAttemptAt: "",
+    lastAttemptKey: "",
+    lastSuccessAt: "",
+    lastError: "",
+    lastSentKey: "",
+  };
+}
+
 function createDefaultState() {
   return {
     settings: {
@@ -99,6 +138,7 @@ function createDefaultState() {
     fellowshipTargets: createEmptyFellowshipTargets(),
     ceremonyData: {},
     users: [],
+    reportAutomation: createDefaultReportAutomation(),
   };
 }
 
@@ -124,6 +164,10 @@ function normalizeState(rawState) {
   }
   state.settings.schemaVersion = SETTINGS_SCHEMA_VERSION;
   state.users = Array.isArray(state.users) ? state.users.map((user) => ({ ...createEmptyUser(), ...user })) : [];
+  state.reportAutomation = {
+    ...createDefaultReportAutomation(),
+    ...(state.reportAutomation || {}),
+  };
 
   state.fellowships = state.fellowships || {};
   state.fellowshipTargets = state.fellowshipTargets || {};
@@ -218,6 +262,290 @@ function jsonResponse(body, init = {}) {
   });
 }
 
+function isOidcConfigured(env) {
+  return Boolean(env.AUTHENTIK_ISSUER && env.AUTHENTIK_CLIENT_ID && env.AUTHENTIK_CLIENT_SECRET && env.SESSION_SECRET);
+}
+
+function base64UrlEncode(input) {
+  const bytes = input instanceof Uint8Array ? input : new TextEncoder().encode(String(input));
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlDecode(value) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const binary = atob(base64);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function parseCookies(request) {
+  return Object.fromEntries(
+    (request.headers.get("cookie") || "")
+      .split(";")
+      .map((cookie) => cookie.trim())
+      .filter(Boolean)
+      .map((cookie) => {
+        const index = cookie.indexOf("=");
+        return index === -1 ? [cookie, ""] : [cookie.slice(0, index), cookie.slice(index + 1)];
+      }),
+  );
+}
+
+async function hmacSignature(secret, payload) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  return base64UrlEncode(new Uint8Array(signature));
+}
+
+async function createSignedCookieValue(secret, data) {
+  const payload = base64UrlEncode(JSON.stringify(data));
+  const signature = await hmacSignature(secret, payload);
+  return `${payload}.${signature}`;
+}
+
+async function readSignedCookieValue(secret, value) {
+  if (!value) {
+    return null;
+  }
+  const [payload, signature] = value.split(".");
+  if (!payload || !signature) {
+    return null;
+  }
+  const expected = await hmacSignature(secret, payload);
+  if (signature !== expected) {
+    return null;
+  }
+  try {
+    return JSON.parse(new TextDecoder().decode(base64UrlDecode(payload)));
+  } catch (_error) {
+    return null;
+  }
+}
+
+function buildCookie(name, value, options = {}) {
+  const parts = [`${name}=${value}`, "Path=/", "HttpOnly", "Secure", "SameSite=Lax"];
+  if (options.maxAge !== undefined) {
+    parts.push(`Max-Age=${options.maxAge}`);
+  }
+  return parts.join("; ");
+}
+
+function redirectResponse(location, headers = {}) {
+  return new Response(null, {
+    status: 302,
+    headers: {
+      location,
+      ...headers,
+    },
+  });
+}
+
+async function getOidcConfig(env) {
+  const issuer = env.AUTHENTIK_ISSUER.replace(/\/+$/, "");
+  const response = await fetch(`${issuer}/.well-known/openid-configuration`);
+  if (!response.ok) {
+    throw new Error(`OIDC discovery returned ${response.status}`);
+  }
+  return response.json();
+}
+
+function randomToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return base64UrlEncode(bytes);
+}
+
+async function sha256Base64Url(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return base64UrlEncode(new Uint8Array(digest));
+}
+
+function getRedirectUri(request) {
+  const url = new URL(request.url);
+  return `${url.origin}/auth/callback`;
+}
+
+async function handleAuthLogin(request, env) {
+  const config = await getOidcConfig(env);
+  const url = new URL(request.url);
+  const state = randomToken();
+  const verifier = randomToken();
+  const challenge = await sha256Base64Url(verifier);
+  const rd = url.searchParams.get("rd") || "/";
+  const oidcCookie = await createSignedCookieValue(env.SESSION_SECRET, {
+    state,
+    verifier,
+    rd,
+    exp: Math.floor(Date.now() / 1000) + 10 * 60,
+  });
+  const authUrl = new URL(config.authorization_endpoint);
+  authUrl.searchParams.set("client_id", env.AUTHENTIK_CLIENT_ID);
+  authUrl.searchParams.set("redirect_uri", getRedirectUri(request));
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("scope", "openid profile email groups");
+  authUrl.searchParams.set("state", state);
+  authUrl.searchParams.set("code_challenge", challenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  return redirectResponse(authUrl.toString(), {
+    "set-cookie": buildCookie(OIDC_COOKIE_NAME, oidcCookie, { maxAge: 10 * 60 }),
+  });
+}
+
+async function fetchOidcUser(config, tokenSet) {
+  let claims = {};
+  if (tokenSet.id_token) {
+    claims = decodeJwtPayload(tokenSet.id_token) || {};
+  }
+  if (config.userinfo_endpoint && tokenSet.access_token) {
+    const response = await fetch(config.userinfo_endpoint, {
+      headers: { authorization: `Bearer ${tokenSet.access_token}` },
+    });
+    if (response.ok) {
+      claims = {
+        ...claims,
+        ...(await response.json()),
+      };
+    }
+  }
+  return claims;
+}
+
+function decodeJwtPayload(token) {
+  const parts = String(token || "").split(".");
+  if (parts.length < 2) {
+    return {};
+  }
+  try {
+    return JSON.parse(new TextDecoder().decode(base64UrlDecode(parts[1])));
+  } catch (_error) {
+    return {};
+  }
+}
+
+function normalizeOidcUser(claims) {
+  const rawGroups = Array.isArray(claims.groups)
+    ? claims.groups
+    : Array.isArray(claims.group)
+      ? claims.group
+      : Array.isArray(claims.ak_groups)
+        ? claims.ak_groups
+        : typeof claims.groups === "string"
+          ? claims.groups.split(/[,\s|]+/)
+          : typeof claims.group === "string"
+            ? claims.group.split(/[,\s|]+/)
+            : typeof claims.ak_groups === "string"
+              ? claims.ak_groups.split(/[,\s|]+/)
+              : [];
+  const groups = rawGroups.map((group) => String(group));
+  const fellowship = groups.find((group) => FELLOWSHIP_NAMES.includes(group)) || "";
+  const role = groups.some((group) => ["admin", "dailytally-admin", "管理者"].includes(group)) ? "admin" : "";
+  return {
+    loginId: claims.preferred_username || claims.nickname || claims.email || claims.sub || "",
+    fellowship,
+    name: claims.name || claims.preferred_username || "",
+    email: claims.email || "",
+    role,
+    groups,
+  };
+}
+
+async function handleAuthCallback(request, env) {
+  const url = new URL(request.url);
+  const cookies = parseCookies(request);
+  const oidcState = await readSignedCookieValue(env.SESSION_SECRET, cookies[OIDC_COOKIE_NAME]);
+  if (!oidcState || oidcState.exp < Math.floor(Date.now() / 1000) || oidcState.state !== url.searchParams.get("state")) {
+    return new Response("Invalid login state", { status: 400 });
+  }
+  const code = url.searchParams.get("code");
+  if (!code) {
+    return new Response("Missing authorization code", { status: 400 });
+  }
+
+  const config = await getOidcConfig(env);
+  const body = new URLSearchParams();
+  body.set("grant_type", "authorization_code");
+  body.set("client_id", env.AUTHENTIK_CLIENT_ID);
+  body.set("client_secret", env.AUTHENTIK_CLIENT_SECRET);
+  body.set("code", code);
+  body.set("redirect_uri", getRedirectUri(request));
+  body.set("code_verifier", oidcState.verifier);
+
+  const tokenResponse = await fetch(config.token_endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!tokenResponse.ok) {
+    return new Response("Token exchange failed", { status: 502 });
+  }
+
+  const tokenSet = await tokenResponse.json();
+  const claims = await fetchOidcUser(config, tokenSet);
+  const user = normalizeOidcUser(claims);
+  const session = await createSignedCookieValue(env.SESSION_SECRET, {
+    user,
+    exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
+  });
+
+  const response = redirectResponse(oidcState.rd || "/");
+  response.headers.append("set-cookie", buildCookie(SESSION_COOKIE_NAME, session, { maxAge: SESSION_TTL_SECONDS }));
+  response.headers.append("set-cookie", buildCookie(OIDC_COOKIE_NAME, "", { maxAge: 0 }));
+  return response;
+}
+
+function handleAuthLogout() {
+  return redirectResponse("/", {
+    "set-cookie": buildCookie(SESSION_COOKIE_NAME, "", { maxAge: 0 }),
+  });
+}
+
+async function readSessionUser(request, env) {
+  const session = await readSignedCookieValue(env.SESSION_SECRET, parseCookies(request)[SESSION_COOKIE_NAME]);
+  if (!session || session.exp < Math.floor(Date.now() / 1000)) {
+    return null;
+  }
+  return session.user || null;
+}
+
+function requestWithUserHeaders(request, user) {
+  const headers = new Headers(request.headers);
+  headers.set("x-dailytally-login-id", user.loginId || "");
+  headers.set("x-dailytally-fellowship", user.fellowship || "");
+  headers.set("x-dailytally-name", user.name || "");
+  headers.set("x-dailytally-email", user.email || "");
+  headers.set("x-dailytally-role", user.role || "");
+  return new Request(request, { headers });
+}
+
+async function authenticateRequest(request, env) {
+  if (!isOidcConfigured(env)) {
+    return { request };
+  }
+
+  const url = new URL(request.url);
+  if (url.pathname.startsWith("/auth/")) {
+    return { request };
+  }
+
+  const user = await readSessionUser(request, env);
+  if (!user) {
+    const loginUrl = new URL("/auth/login", url.origin);
+    loginUrl.searchParams.set("rd", `${url.pathname}${url.search}`);
+    return { response: redirectResponse(loginUrl.toString()) };
+  }
+
+  return { request: requestWithUserHeaders(request, user), user };
+}
+
 function readSSOHeader(request, name) {
   const value = request.headers.get(name);
   if (!value) {
@@ -231,26 +559,47 @@ function readSSOHeader(request, name) {
 }
 
 function getCurrentUser(request) {
-  const email = readSSOHeader(request, "x-dailytally-email") || readSSOHeader(request, "cf-access-authenticated-user-email");
+  const groups = readSSOHeader(request, "x-authentik-groups")
+    .split("|")
+    .map((group) => group.trim())
+    .filter(Boolean);
+  const fellowship = readSSOHeader(request, "x-dailytally-fellowship") || groups.find((group) => FELLOWSHIP_NAMES.includes(group)) || "";
+  const role =
+    readSSOHeader(request, "x-dailytally-role") ||
+    (groups.some((group) => ["admin", "dailytally-admin", "管理者"].includes(group)) ? "admin" : "");
+  const email =
+    readSSOHeader(request, "x-dailytally-email") ||
+    readSSOHeader(request, "x-authentik-email") ||
+    readSSOHeader(request, "cf-access-authenticated-user-email");
   const user = {
-    loginId: readSSOHeader(request, "x-dailytally-login-id") || email,
-    fellowship: readSSOHeader(request, "x-dailytally-fellowship"),
-    name: readSSOHeader(request, "x-dailytally-name"),
+    loginId: readSSOHeader(request, "x-dailytally-login-id") || readSSOHeader(request, "x-authentik-username") || email,
+    fellowship,
+    name: readSSOHeader(request, "x-dailytally-name") || readSSOHeader(request, "x-authentik-name"),
     email,
-    role: readSSOHeader(request, "x-dailytally-role"),
+    role,
   };
 
   return Object.values(user).some((value) => String(value || "").trim() !== "") ? user : createEmptyUser();
 }
 
+function hasUserIdentity(user) {
+  return ["loginId", "fellowship", "name", "email", "role"].some((key) => String(user?.[key] || "").trim() !== "");
+}
+
 function canWriteFellowship(request, fellowship) {
   const user = getCurrentUser(request);
-  return !user.fellowship || user.fellowship === fellowship;
+  if (!hasUserIdentity(user)) {
+    return true;
+  }
+  return user.role === "admin" || user.fellowship === fellowship;
 }
 
 function canWriteAdmin(request) {
   const user = getCurrentUser(request);
-  return !user.fellowship || user.role === "admin";
+  if (!hasUserIdentity(user)) {
+    return true;
+  }
+  return user.role === "admin";
 }
 
 async function readState(db) {
@@ -266,6 +615,384 @@ async function writeState(db, state) {
     )
     .bind(STATE_ID, JSON.stringify(normalizeState(state)))
     .run();
+}
+
+function nowJST(date = new Date()) {
+  return new Date(date.getTime() + JST_OFFSET_MS);
+}
+
+function formatJSTTimestamp(date = new Date()) {
+  return nowJST(date).toISOString().replace("T", " ").slice(0, 16);
+}
+
+function formatShortDate(iso) {
+  if (!iso) {
+    return "";
+  }
+  const [, month, day] = iso.split("-").map(Number);
+  return `${month}/${day}`;
+}
+
+function getWeekDates(ceremonyData) {
+  if (!ceremonyData.weekStart || !ceremonyData.weekEnd) {
+    return [];
+  }
+
+  const dates = [];
+  let current = ceremonyData.weekStart;
+  while (current < ceremonyData.weekEnd && dates.length < 366) {
+    dates.push({ id: current, label: formatShortDate(current) });
+    current = addDaysISO(current, 1);
+  }
+  return dates;
+}
+
+function getStoredValue(ceremonyData, fellowship, dateId, itemKey) {
+  return Number(ceremonyData.fellowships?.[fellowship]?.[dateId]?.[itemKey]) || 0;
+}
+
+function getDayTotals(ceremonyData, dateId) {
+  const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
+  FELLOWSHIP_NAMES.forEach((fellowship) => {
+    REPORT_ITEMS.forEach((item) => {
+      totals[item.key] += getStoredValue(ceremonyData, fellowship, dateId, item.key);
+    });
+  });
+  return totals;
+}
+
+function getFinalTotals(ceremonyData) {
+  const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
+  FELLOWSHIP_NAMES.forEach((fellowship) => {
+    REPORT_ITEMS.forEach((item) => {
+      totals[item.key] += getStoredValue(ceremonyData, fellowship, ceremonyData.weekEnd, item.key) || getStoredValue(ceremonyData, fellowship, FINAL_ROW_ID, item.key);
+    });
+  });
+  return totals;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function getDueSendKey(state) {
+  const ceremonyData = getCeremonyData(state, state.settings.ceremonyId);
+  return `${state.settings.ceremonyId}:${ceremonyData.weekEnd}:${state.reportAutomation.sendTime}`;
+}
+
+function isReportDue(state, date = new Date()) {
+  const report = state.reportAutomation;
+  if (!report.enabled || !/^\d{2}:\d{2}$/.test(report.sendTime || "")) {
+    return false;
+  }
+
+  const ceremonyData = getCeremonyData(state, state.settings.ceremonyId);
+  const [hour, minute] = report.sendTime.split(":").map(Number);
+  const jst = nowJST(date);
+  const today = jst.toISOString().slice(0, 10);
+  const currentMinutes = jst.getUTCHours() * 60 + jst.getUTCMinutes();
+  const targetMinutes = hour * 60 + minute;
+
+  const sendKey = getDueSendKey(state);
+  return today === ceremonyData.weekEnd && currentMinutes >= targetMinutes && report.lastSentKey !== sendKey && report.lastAttemptKey !== sendKey;
+}
+
+function parseCookieHeaders(headers) {
+  const cookies = headers.getSetCookie?.() || [];
+  const fallback = headers.get("set-cookie");
+  return (cookies.length ? cookies : fallback ? [fallback] : [])
+    .map((cookie) => cookie.split(";")[0])
+    .join("; ");
+}
+
+function extractLoginToken(html) {
+  return html.match(/name="token"\s+value="([^"]+)"/)?.[1] || "";
+}
+
+function buildSummaryReportHtml(state) {
+  const ceremonyData = getCeremonyData(state, state.settings.ceremonyId);
+  const rows = [];
+
+  rows.push(`
+    <tr class="title-row">
+      <th colspan="${REPORT_ITEMS.length + 1}">～第31回八大明王護摩供　集計表～　報告数は累計数です</th>
+    </tr>
+    <tr class="meta-row">
+      <th colspan="3"><span>聖院名:</span> 聖明王院</th>
+      <th colspan="3"><span>ご担当者名:</span> 尾ノ上裕美</th>
+      <th colspan="${Math.max(1, REPORT_ITEMS.length - 5)}"><span>電話番号:</span> 09041779036</th>
+    </tr>
+    <tr>
+      <th></th>
+      ${REPORT_ITEMS.map((item) => `<th>${escapeHtml(item.summaryLabel)}</th>`).join("")}
+    </tr>
+  `);
+
+  getWeekDates(ceremonyData).forEach((date) => {
+    const totals = getDayTotals(ceremonyData, date.id);
+    rows.push(`
+      <tr>
+        <th>${escapeHtml(date.label)}</th>
+        ${REPORT_ITEMS.map((item) => {
+          const value = totals[item.key] || "";
+          return `<td><span class="value">${escapeHtml(value)}</span><span class="unit">${escapeHtml(item.unit)}</span></td>`;
+        }).join("")}
+      </tr>
+    `);
+  });
+
+  const finalTotals = getFinalTotals(ceremonyData);
+  rows.push(`
+    <tr class="final-row">
+      <th>最終</th>
+      ${REPORT_ITEMS.map((item) => {
+        const value = finalTotals[item.key] || "";
+        return `<td><span class="value">${escapeHtml(value)}</span><span class="unit">${escapeHtml(item.unit)}</span></td>`;
+      }).join("")}
+    </tr>
+  `);
+
+  return `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    @page { size: A4 landscape; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #000;
+      background: #fff;
+      font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", serif;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    th, td {
+      border: 1.5px solid #000;
+      height: 38px;
+      padding: 3px 4px;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+    .title-row th {
+      height: 34px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .meta-row th {
+      height: 30px;
+      text-align: left;
+      font-size: 16px;
+      font-weight: 400;
+    }
+    tr:not(.title-row):not(.meta-row) th:first-child {
+      width: 54px;
+      font-size: 16px;
+    }
+    tr:not(.title-row):not(.meta-row):not(.final-row) th:not(:first-child) {
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      height: 150px;
+      font-size: 13px;
+      letter-spacing: 0;
+    }
+    td {
+      position: relative;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .unit {
+      position: absolute;
+      right: 4px;
+      bottom: 3px;
+      font-size: 11px;
+      font-weight: 400;
+    }
+    .final-row th,
+    .final-row td {
+      background: #f4f4f5;
+    }
+    .note {
+      margin: 0;
+      border: 1.5px solid #000;
+      border-top: 0;
+      padding: 2px 6px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <table>${rows.join("")}</table>
+  <p class="note">※水は種類を問わず、箱数で記入(1箱20リットルとして計算願います)</p>
+</body>
+</html>`;
+}
+
+async function tendoLogin(env) {
+  if (!env.TENDO_ACCOUNT || !env.TENDO_PASSWORD) {
+    throw new Error("TENDO_ACCOUNT/TENDO_PASSWORD secrets are not configured");
+  }
+
+  const loginPage = await fetch(TENDO_LOGIN_URL, { redirect: "follow" });
+  const loginHtml = await loginPage.text();
+  const token = extractLoginToken(loginHtml);
+  const cookie = parseCookieHeaders(loginPage.headers);
+  if (!token) {
+    throw new Error("Could not find tendo.net login token");
+  }
+
+  const body = new URLSearchParams();
+  body.set("ses_user", env.TENDO_ACCOUNT);
+  body.set("ses_password", env.TENDO_PASSWORD);
+  body.set("url", "/advanced/index.php");
+  body.set("token", token);
+  body.set("ses_login", "ログイン");
+
+  const response = await fetch(TENDO_LOGIN_URL, {
+    method: "POST",
+    redirect: "follow",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      cookie,
+      referer: TENDO_LOGIN_URL,
+    },
+    body,
+  });
+  const html = await response.text();
+  const nextCookie = [cookie, parseCookieHeaders(response.headers)].filter(Boolean).join("; ");
+
+  if (!html.includes("/advanced/logout.php")) {
+    throw new Error("tendo.net login did not reach the advanced page");
+  }
+
+  return nextCookie;
+}
+
+async function generateSummaryPdf(env, state) {
+  if (!env.BROWSER) {
+    throw new Error("BROWSER binding is not configured");
+  }
+
+  const html = buildSummaryReportHtml(state);
+  const browser = await puppeteer.launch(env.BROWSER);
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    return await page.pdf({
+      format: "A4",
+      landscape: true,
+      printBackground: true,
+      margin: {
+        top: "15mm",
+        right: "12mm",
+        bottom: "15mm",
+        left: "12mm",
+      },
+    });
+  } finally {
+    await browser.close();
+  }
+}
+
+async function fetchReportPdf(env, state) {
+  return generateSummaryPdf(env, state);
+}
+
+async function submitOnlineReport(env, state, cookie, pdfBuffer) {
+  if (env.REPORT_REMOTE_SUBMIT !== "true") {
+    throw new Error("REPORT_REMOTE_SUBMIT is not true");
+  }
+
+  const onlinePage = await fetch(TENDO_ONLINE_URL, {
+    headers: { cookie },
+    redirect: "follow",
+  });
+  const onlineHtml = await onlinePage.text();
+  if (onlineHtml.includes("申請者登録フォーム")) {
+    throw new Error("tendo.net applicant registration is not completed");
+  }
+
+  const postUrl = env.REPORT_ONLINE_POST_URL;
+  const fileField = env.REPORT_ONLINE_FILE_FIELD || "file";
+  if (!postUrl) {
+    throw new Error("REPORT_ONLINE_POST_URL is not configured");
+  }
+
+  const formData = new FormData();
+  formData.set("name", state.reportAutomation.senderName);
+  formData.set("branch", state.reportAutomation.branchCode);
+  formData.set(fileField, new File([pdfBuffer], "dailytally-report.pdf", { type: "application/pdf" }));
+
+  const response = await fetch(postUrl, {
+    method: "POST",
+    headers: { cookie },
+    body: formData,
+    redirect: "follow",
+  });
+  const text = await response.text();
+  if (!response.ok || /エラー|失敗|ログイン/.test(text)) {
+    throw new Error(`tendo.net report submit returned ${response.status}`);
+  }
+}
+
+async function sendNotification(env, report, subject, body) {
+  if (!env.RESEND_API_KEY || !report.notifyEmail) {
+    return;
+  }
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from: env.REPORT_NOTIFY_FROM || "Dailytally <onboarding@resend.dev>",
+      to: report.notifyEmail,
+      subject,
+      text: body,
+    }),
+  });
+}
+
+async function runScheduledReport(env) {
+  const state = await readState(env.DB);
+  if (!isReportDue(state)) {
+    return;
+  }
+
+  const report = state.reportAutomation;
+  const sendKey = getDueSendKey(state);
+  report.lastAttemptAt = formatJSTTimestamp();
+  report.lastAttemptKey = sendKey;
+  report.lastError = "";
+  await writeState(env.DB, state);
+
+  try {
+    const cookie = await tendoLogin(env);
+    const pdfBuffer = await fetchReportPdf(env, state);
+    await submitOnlineReport(env, state, cookie, pdfBuffer);
+
+    report.lastSuccessAt = formatJSTTimestamp();
+    report.lastSentKey = sendKey;
+    report.lastError = "";
+    await writeState(env.DB, state);
+    await sendNotification(env, report, "オンライン報告を送信しました", `送信完了: ${report.lastSuccessAt}`);
+  } catch (error) {
+    report.lastError = error instanceof Error ? error.message : String(error);
+    await writeState(env.DB, state);
+    await sendNotification(env, report, "オンライン報告の送信に失敗しました", report.lastError);
+    throw error;
+  }
 }
 
 function toNumber(value) {
@@ -297,6 +1024,13 @@ async function handleStatePatch(request, env) {
       ...state.settings,
       ...(patch.settings || {}),
     };
+    if (patch.reportAutomation) {
+      state.reportAutomation = {
+        ...createDefaultReportAutomation(),
+        ...state.reportAutomation,
+        ...patch.reportAutomation,
+      };
+    }
     if (patch.ceremonySettings) {
       const ceremonyData = getCeremonyData(state, patch.ceremonyId);
       ceremonyData.weekStart = patch.ceremonySettings.weekStart || "";
@@ -362,17 +1096,55 @@ async function handleApi(request, env) {
     return jsonResponse(getCurrentUser(request));
   }
 
+  if (url.pathname === "/api/report-pdf" && request.method === "GET") {
+    if (!canWriteAdmin(request)) {
+      return jsonResponse({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const state = await readState(env.DB);
+    const pdf = await generateSummaryPdf(env, state);
+    return new Response(pdf, {
+      headers: {
+        "content-type": "application/pdf",
+        "content-disposition": 'inline; filename="dailytally-report.pdf"',
+      },
+    });
+  }
+
   return jsonResponse({ error: "Not found" }, { status: 404 });
 }
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
+    let url = new URL(request.url);
+
+    if (isOidcConfigured(env)) {
+      if (url.pathname === "/auth/login") {
+        return handleAuthLogin(request, env);
+      }
+      if (url.pathname === "/auth/callback") {
+        return handleAuthCallback(request, env);
+      }
+      if (url.pathname === "/auth/logout") {
+        return handleAuthLogout();
+      }
+    }
+
+    const auth = await authenticateRequest(request, env);
+    if (auth.response) {
+      return auth.response;
+    }
+    request = auth.request;
+    url = new URL(request.url);
 
     if (url.pathname.startsWith("/api/")) {
       return handleApi(request, env);
     }
 
     return env.ASSETS.fetch(request);
+  },
+
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(runScheduledReport(env));
   },
 };

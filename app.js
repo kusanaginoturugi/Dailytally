@@ -170,6 +170,7 @@ const API_ME_URL = "/api/me";
 const REFRESH_INTERVAL_MS = 15000;
 const SETTINGS_SCHEMA_VERSION = 2;
 const FINAL_ROW_ID = "__final__";
+const DEFAULT_REPORT_BRANCH_CODE = "99300";
 
 const appTitle = document.getElementById("appTitle");
 const tabButtons = document.getElementById("tabButtons");
@@ -180,6 +181,24 @@ let activeTab = "admin";
 let currentUser = null;
 
 init();
+
+function redirectToLogin() {
+  const rd = `${window.location.pathname}${window.location.search}`;
+  window.location.href = `/auth/login?rd=${encodeURIComponent(rd)}`;
+}
+
+async function apiFetch(url, options = {}) {
+  const response = await fetch(url, { ...options, redirect: "manual" });
+  if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
+    redirectToLogin();
+    throw new Error("Authentication required");
+  }
+  if (response.headers.get("content-type")?.includes("text/html")) {
+    redirectToLogin();
+    throw new Error("Authentication required");
+  }
+  return response;
+}
 
 async function init() {
   [state, currentUser] = await Promise.all([loadState(), loadCurrentUser()]);
@@ -195,7 +214,7 @@ async function loadCurrentUser() {
   }
 
   try {
-    const response = await fetch(API_ME_URL);
+    const response = await apiFetch(API_ME_URL);
     if (!response.ok) {
       throw new Error(`User API returned ${response.status}`);
     }
@@ -212,6 +231,11 @@ function normalizeCurrentUser(user) {
 }
 
 function getSavedActiveTab() {
+  const requestedTab = new URLSearchParams(window.location.search).get("tab");
+  if (isKnownTab(requestedTab)) {
+    return requestedTab;
+  }
+
   const savedTab = localStorage.getItem(ACTIVE_TAB_KEY);
   if (isKnownTab(savedTab)) {
     return savedTab;
@@ -226,9 +250,16 @@ function isKnownTab(tabName) {
   return tabName === "summary" || fellowshipNames.includes(tabName);
 }
 
+function hasAuthenticatedUser() {
+  return Boolean(
+    currentUser &&
+      ["loginId", "fellowship", "name", "email", "role"].some((key) => String(currentUser[key] || "").trim() !== ""),
+  );
+}
+
 function canAccessAdmin() {
-  // SSO未連携（currentUserがnullまたはfellowshipが空）の場合は、便宜上管理者として扱う（移行期間用）
-  if (!currentUser || !currentUser.fellowship) {
+  // SSO未連携の場合は、便宜上管理者として扱う（移行期間用）
+  if (!hasAuthenticatedUser()) {
     return true;
   }
   return currentUser.role === "admin";
@@ -394,6 +425,22 @@ function createEmptyUser() {
   };
 }
 
+function createDefaultReportAutomation() {
+  return {
+    enabled: false,
+    sendTime: "22:00",
+    senderName: "聖明王院事務局",
+    branchName: "聖明王院",
+    branchCode: DEFAULT_REPORT_BRANCH_CODE,
+    notifyEmail: "jimmyouou@gmail.com",
+    lastAttemptAt: "",
+    lastAttemptKey: "",
+    lastSuccessAt: "",
+    lastError: "",
+    lastSentKey: "",
+  };
+}
+
 function createDefaultState() {
   return {
     settings: {
@@ -411,6 +458,7 @@ function createDefaultState() {
     fellowshipTargets: createEmptyFellowshipTargets(),
     ceremonyData: {},
     users: [],
+    reportAutomation: createDefaultReportAutomation(),
   };
 }
 
@@ -458,6 +506,10 @@ function normalizeStateShape(targetState) {
   targetState.users = Array.isArray(targetState.users)
     ? targetState.users.map((user) => ({ ...createEmptyUser(), ...user }))
     : [];
+  targetState.reportAutomation = {
+    ...createDefaultReportAutomation(),
+    ...(targetState.reportAutomation || {}),
+  };
 
   if (!targetState.ceremonyData) {
     targetState.ceremonyData = {
@@ -580,6 +632,7 @@ function loadLocalState() {
         fellowshipTargets: createEmptyFellowshipTargets(),
         ceremonyData: {},
         users: [],
+        reportAutomation: createDefaultReportAutomation(),
       };
       return migrated;
     } catch (_error) {
@@ -606,6 +659,7 @@ function loadLocalState() {
       fellowshipTargets: raw.fellowshipTargets || createEmptyFellowshipTargets(),
       ceremonyData: raw.ceremonyData || null,
       users: raw.users || [],
+      reportAutomation: raw.reportAutomation || createDefaultReportAutomation(),
     };
     return normalizeStateShape(loaded);
   } catch (_error) {
@@ -615,7 +669,7 @@ function loadLocalState() {
 
 async function loadState() {
   try {
-    const response = await fetch(API_STATE_URL);
+    const response = await apiFetch(API_STATE_URL);
     if (!response.ok) {
       throw new Error(`State API returned ${response.status}`);
     }
@@ -683,7 +737,7 @@ function hasUserValues(currentState) {
 
 async function patchState(patch) {
   try {
-    const response = await fetch(API_STATE_URL, {
+    const response = await apiFetch(API_STATE_URL, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(patch),
@@ -704,6 +758,7 @@ function saveSettings() {
   return patchState({
     type: "settings",
     settings: { ceremonyId: state.settings.ceremonyId, schemaVersion: SETTINGS_SCHEMA_VERSION },
+    reportAutomation: state.reportAutomation,
     ceremonyId: getActiveCeremonyConfig().id,
     ceremonySettings: {
       weekStart: getActiveCeremonyData().weekStart,
@@ -719,7 +774,7 @@ async function refreshStateFromDatabase() {
   }
 
   try {
-    const response = await fetch(API_STATE_URL);
+    const response = await apiFetch(API_STATE_URL);
     if (!response.ok) {
       throw new Error(`State API returned ${response.status}`);
     }
@@ -791,8 +846,14 @@ function getCurrentFellowship() {
 }
 
 function canEditFellowship(name) {
+  if (!hasAuthenticatedUser()) {
+    return true;
+  }
+  if (canAccessAdmin()) {
+    return true;
+  }
   const fellowship = getCurrentFellowship();
-  return !fellowship || fellowship === name;
+  return fellowship === name;
 }
 
 function canEditTargetRow(name) {
@@ -1086,6 +1147,17 @@ function renderInputPage(name) {
   pageContainer.appendChild(content);
 }
 
+function getReportStatusText() {
+  const report = {
+    ...createDefaultReportAutomation(),
+    ...(state.reportAutomation || {}),
+  };
+  const status = report.enabled ? "有効" : "無効";
+  const lastSuccess = report.lastSuccessAt ? ` 最終成功: ${report.lastSuccessAt}` : "";
+  const lastError = report.lastError ? ` 最終エラー: ${report.lastError}` : "";
+  return `状態: ${status} / 最終日の ${report.sendTime} に送信${lastSuccess}${lastError}`;
+}
+
 function renderAdminPage() {
   const template = document.getElementById("adminPageTemplate");
   const content = template.content.cloneNode(true);
@@ -1093,8 +1165,19 @@ function renderAdminPage() {
   const weekStartInput = content.querySelector("#weekStart");
   const weekEndInput = content.querySelector("#weekEnd");
   const seekerStartInput = content.querySelector("#seekerStart");
+  const reportEnabledInput = content.querySelector("#reportEnabled");
+  const reportSendTimeInput = content.querySelector("#reportSendTime");
+  const reportSenderNameInput = content.querySelector("#reportSenderName");
+  const reportBranchNameInput = content.querySelector("#reportBranchName");
+  const reportBranchCodeInput = content.querySelector("#reportBranchCode");
+  const reportNotifyEmailInput = content.querySelector("#reportNotifyEmail");
+  const reportStatus = content.querySelector("#reportStatus");
   const ceremonyData = getActiveCeremonyData();
   ensureCeremonyDates(ceremonyData);
+  state.reportAutomation = {
+    ...createDefaultReportAutomation(),
+    ...(state.reportAutomation || {}),
+  };
 
   CEREMONY_CONFIGS.forEach((ceremony) => {
     const option = document.createElement("option");
@@ -1107,6 +1190,13 @@ function renderAdminPage() {
   weekStartInput.value = formatShortDate(ceremonyData.weekStart);
   weekEndInput.value = formatShortDate(ceremonyData.weekEnd);
   seekerStartInput.value = formatShortDate(ceremonyData.seekerStart);
+  reportEnabledInput.checked = Boolean(state.reportAutomation.enabled);
+  reportSendTimeInput.value = state.reportAutomation.sendTime || "22:00";
+  reportSenderNameInput.value = state.reportAutomation.senderName || "";
+  reportBranchNameInput.value = state.reportAutomation.branchName || "";
+  reportBranchCodeInput.value = state.reportAutomation.branchCode || DEFAULT_REPORT_BRANCH_CODE;
+  reportNotifyEmailInput.value = state.reportAutomation.notifyEmail || "";
+  reportStatus.textContent = getReportStatusText();
 
   ceremonySelect.addEventListener("change", () => {
     state.settings.ceremonyId = ceremonySelect.value;
@@ -1142,6 +1232,25 @@ function renderAdminPage() {
     activeData.seekerStart = parseAdminDateInput(seekerStartInput.value);
     seekerStartInput.value = formatShortDate(activeData.seekerStart);
     saveSettings();
+  });
+
+  const saveReportAutomation = () => {
+    state.reportAutomation = {
+      ...createDefaultReportAutomation(),
+      ...(state.reportAutomation || {}),
+      enabled: reportEnabledInput.checked,
+      sendTime: reportSendTimeInput.value || "22:00",
+      senderName: reportSenderNameInput.value.trim(),
+      branchName: reportBranchNameInput.value.trim(),
+      branchCode: reportBranchCodeInput.value.trim() || DEFAULT_REPORT_BRANCH_CODE,
+      notifyEmail: reportNotifyEmailInput.value.trim(),
+    };
+    reportStatus.textContent = getReportStatusText();
+    saveSettings();
+  };
+
+  [reportEnabledInput, reportSendTimeInput, reportSenderNameInput, reportBranchNameInput, reportBranchCodeInput, reportNotifyEmailInput].forEach((input) => {
+    input.addEventListener("change", saveReportAutomation);
   });
 
   renderUserList(content);

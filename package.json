@@ -1,11 +1,12 @@
 {
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --name dailytally --compatibility-flags nodejs_compat",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote"
   },
   "devDependencies": {
+    "@cloudflare/puppeteer": "^1.1.0",
     "wrangler": "^4.0.0"
   }
 }

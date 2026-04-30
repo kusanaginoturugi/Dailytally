@@ -38,6 +38,50 @@ SSO側から以下のヘッダーを渡す想定です。
 
 `x-dailytally-fellowship` が `大江戸` などの伝道会名と一致すると、その伝道会ページのみ入力できます。他伝道会と合計ページは閲覧のみです。SSO未連携で伝道会名が渡らない場合は、従来どおり入力できます。
 
+authentik Proxy Providerを使う場合は、標準ヘッダーも読み取ります。
+
+- `X-authentik-username`
+- `X-authentik-email`
+- `X-authentik-name`
+- `X-authentik-groups`
+
+`X-authentik-groups` に `大江戸` などの伝道会名が含まれていれば、その伝道会ユーザーとして扱います。`admin`、`dailytally-admin`、`管理者` のいずれかが含まれていれば管理者として扱います。
+
+Cloudflare Workers単体で使う場合は、authentikのOAuth2/OpenID Providerを使います。Cloudflare Secretsに以下を設定すると、アプリ全体がOIDCログイン必須になります。
+
+```
+npx wrangler secret put --name dailytally AUTHENTIK_ISSUER
+npx wrangler secret put --name dailytally AUTHENTIK_CLIENT_ID
+npx wrangler secret put --name dailytally AUTHENTIK_CLIENT_SECRET
+npx wrangler secret put --name dailytally SESSION_SECRET
+```
+
+authentik側のProvider設定:
+
+- Provider種別: OAuth2/OpenID Provider
+- Redirect URI: `https://<デプロイ先>/auth/callback`
+- Scopes: `openid profile email groups`
+- Subject mode: hashed user IDなど任意
+
+`AUTHENTIK_ISSUER` はProviderのOpenID Configurationに表示されるissuer URLを設定します。例: `https://auth.showway.biz/application/o/dailytally/`
+
+ログインユーザーにはauthentikグループを付与してください。管理者は `dailytally-admin`、各伝道会ユーザーは `大江戸`、`お台場`、`羽田`、`かながわ`、`富士山`、`駿天`、`埼玉`、`千葉`、`山梨` のいずれかを付けます。グループがないユーザーは管理ページも入力もできません。
+
+### 動作確認
+
+1. `https://<デプロイ先>/auth/login` を開く
+2. authentik でログインする
+3. `https://<デプロイ先>/api/me` を開く
+4. `loginId`、`email`、`role`、`fellowship` が返ることを確認する
+
+認証情報が切り替わらないときは、authentik ではなく Dailytally 側のセッションを切るために `https://<デプロイ先>/auth/logout` を開いてから、もう一度ログインしてください。authentik のログアウトだけでは Dailytally の Cookie が残る場合があります。
+
+### 権限の考え方
+
+- `dailytally-admin` が付いているユーザーは管理者
+- `大江戸` などの伝道会グループが付いているユーザーはその伝道会の入力担当
+- どのグループも付いていないユーザーは閲覧や更新を許可しない
+
 ## Cloudflare D1設定
 
 1. 依存関係をインストール
@@ -49,3 +93,48 @@ SSO側から以下のヘッダーを渡す想定です。
    `npm run db:migrate:remote`
 5. Workersへデプロイ
    `npm run deploy`
+
+## オンライン報告の自動送信
+
+管理ページの「オンライン報告」で送信時刻、送信者名、伝道会名、通知先メールを設定できます。
+ログイン情報はD1やコードには保存せず、Cloudflare Secretsに設定します。
+
+```
+npx wrangler secret put --name dailytally TENDO_ACCOUNT
+npx wrangler secret put --name dailytally TENDO_PASSWORD
+```
+
+PDF生成はCloudflare Browser RenderingでD1の集計データをA4横PDF化します。
+
+デプロイ後、管理者でアクセスできる状態で次のURLを開くとPDF生成を確認できます。
+
+```
+https://<デプロイ先>/api/report-pdf
+```
+
+tendo.netの実送信は外部フォーム確認後に有効化します。実送信を許可する場合は、送信先フォーム設定と明示フラグをCloudflare側に設定してください。
+
+```
+npx wrangler secret put --name dailytally REPORT_ONLINE_POST_URL
+npx wrangler secret put --name dailytally REPORT_ONLINE_FILE_FIELD
+npx wrangler secret put --name dailytally REPORT_REMOTE_SUBMIT
+```
+
+メール通知にResendを使う場合:
+
+```
+npx wrangler secret put --name dailytally RESEND_API_KEY
+npx wrangler secret put --name dailytally REPORT_NOTIFY_FROM
+```
+
+聖明王院系の現行コードメモ:
+
+- `99300` 聖明王院
+- `31101` 埼玉準公壇
+- `31201` 千葉準公壇
+- `31303` 大江戸準総壇
+- `31304` 羽田準総壇
+- `31305` お台場準総壇
+- `31407` かながわ準総壇
+- `32204` 富士山準総壇
+- `32205` 駿天準総壇
