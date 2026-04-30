@@ -1159,11 +1159,57 @@ function getTargetTotals() {
   return totals;
 }
 
+function getSummaryPdfFileName() {
+  const ceremony = getActiveCeremonyConfig().name.replace(/[\\/:*?"<>|]/g, "");
+  return `第${getCeremonyNumber()}回${ceremony}_集計表.pdf`;
+}
+
+async function saveSummaryPdf(button) {
+  const printArea = document.getElementById("summaryPrintArea");
+  if (!printArea || !window.html2canvas || !window.jspdf?.jsPDF) {
+    alert("PDF保存の準備ができていません。画面を再読み込みしてからもう一度お試しください。");
+    return;
+  }
+
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "保存中...";
+
+  try {
+    const canvas = await window.html2canvas(printArea, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+    });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const margin = 15;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const maxWidth = pageWidth - margin * 2;
+    const maxHeight = pageHeight - margin * 2;
+    const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height) * 0.9;
+    const imageWidth = canvas.width * ratio;
+    const imageHeight = canvas.height * ratio;
+    const x = (pageWidth - imageWidth) / 2;
+    const y = margin;
+
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y, imageWidth, imageHeight);
+    pdf.save(getSummaryPdfFileName());
+  } catch (error) {
+    console.error("PDFを保存できませんでした。", error);
+    alert("PDFを保存できませんでした。もう一度お試しください。");
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
 function renderSummaryPage() {
   const template = document.getElementById("summaryPageTemplate");
   const content = template.content.cloneNode(true);
-  content.querySelector("#summaryPdfButton").addEventListener("click", () => {
-    window.print();
+  content.querySelector("#summaryPdfButton").addEventListener("click", (event) => {
+    saveSummaryPdf(event.currentTarget);
   });
 
   content.querySelector("[data-summary-title]").textContent =

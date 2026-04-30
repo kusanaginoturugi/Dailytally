@@ -267,6 +267,11 @@ main {
   background: var(--accent-soft);
 }
 
+.summary-pdf-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .summary-print-area {
   background: #ffffff;
 }
