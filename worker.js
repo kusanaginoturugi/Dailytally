@@ -98,7 +98,11 @@ function ensureCeremonyDates(ceremonyData, ceremonyId) {
   const currentYear = Number(today.slice(0, 4));
   const preset = getCeremonyDatePreset(ceremonyId);
 
-  if (preset && ceremonyData.datePresetKey !== preset.key) {
+  if (
+    preset &&
+    ceremonyData.datePresetKey !== `custom:${preset.key}` &&
+    (ceremonyData.datePresetKey !== preset.key || ceremonyData.weekStart !== preset.weekStart || ceremonyData.weekEnd !== preset.weekEnd)
+  ) {
     ceremonyData.weekStart = preset.weekStart;
     ceremonyData.weekEnd = preset.weekEnd;
     ceremonyData.datePresetKey = preset.key;
@@ -1067,6 +1071,10 @@ async function handleStatePatch(request, env) {
       ceremonyData.weekStart = patch.ceremonySettings.weekStart || "";
       ceremonyData.weekEnd = patch.ceremonySettings.weekEnd || "";
       ceremonyData.seekerStart = patch.ceremonySettings.seekerStart || "";
+      const preset = getCeremonyDatePreset(patch.ceremonyId);
+      if (preset) {
+        ceremonyData.datePresetKey = `custom:${preset.key}`;
+      }
       ensureCeremonyDates(ceremonyData, patch.ceremonyId);
     }
   } else if (patch.type === "value") {

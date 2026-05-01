@@ -375,7 +375,11 @@ function ensureCeremonyDates(ceremonyData, ceremonyId = getActiveCeremonyConfig(
   const currentYear = new Date().getFullYear();
   const preset = getCeremonyDatePreset(ceremonyId);
 
-  if (preset && ceremonyData.datePresetKey !== preset.key) {
+  if (
+    preset &&
+    ceremonyData.datePresetKey !== `custom:${preset.key}` &&
+    (ceremonyData.datePresetKey !== preset.key || ceremonyData.weekStart !== preset.weekStart || ceremonyData.weekEnd !== preset.weekEnd)
+  ) {
     ceremonyData.weekStart = preset.weekStart;
     ceremonyData.weekEnd = preset.weekEnd;
     ceremonyData.datePresetKey = preset.key;
@@ -1239,9 +1243,13 @@ function renderAdminPage() {
 
   weekStartInput.addEventListener("change", () => {
     const activeData = getActiveCeremonyData();
+    const preset = getCeremonyDatePreset(getActiveCeremonyConfig().id);
     const nextWeekStart = parseAdminDateInput(weekStartInput.value) || toISODate(new Date());
     activeData.weekStart = nextWeekStart;
     activeData.weekEnd = addDaysISO(nextWeekStart, 7);
+    if (preset) {
+      activeData.datePresetKey = `custom:${preset.key}`;
+    }
     weekStartInput.value = formatShortDate(activeData.weekStart);
     weekEndInput.value = formatShortDate(activeData.weekEnd);
     if (activeData.seekerStart) {
@@ -1252,9 +1260,13 @@ function renderAdminPage() {
 
   weekEndInput.addEventListener("change", () => {
     const activeData = getActiveCeremonyData();
+    const preset = getCeremonyDatePreset(getActiveCeremonyConfig().id);
     activeData.weekEnd = parseAdminDateInput(weekEndInput.value) || addDaysISO(activeData.weekStart, 7);
     if (activeData.weekStart && activeData.weekEnd && activeData.weekEnd < activeData.weekStart) {
       activeData.weekEnd = addDaysISO(activeData.weekStart, 7);
+    }
+    if (preset) {
+      activeData.datePresetKey = `custom:${preset.key}`;
     }
     weekEndInput.value = formatShortDate(activeData.weekEnd);
     saveSettings();
