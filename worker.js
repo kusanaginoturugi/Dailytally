@@ -51,6 +51,14 @@ const OIDC_COOKIE_NAME = "dailytally_oidc";
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const TENDO_LOGIN_URL = "https://tendo.net/advanced/login.php?url=/advanced/index.php";
 const TENDO_ONLINE_URL = "https://tendo.net/advanced/online.php";
+const CEREMONY_DATE_PRESETS = {
+  "jizo-sonno": { endMonth: 6, endDay: 20 },
+  "segaki-kuyo": { endMonth: 8, endDay: 9 },
+  "hokuto-chinatsu": { endMonth: 9, endDay: 13 },
+  "rokuson-hoju": { endMonth: 10, endDay: 11 },
+  "chosei-minami": { endMonth: 11, endDay: 8 },
+  "myozen-enma": { endMonth: 11, endDay: 23 },
+};
 
 function todayISO() {
   return new Date(Date.now() + JST_OFFSET_MS).toISOString().slice(0, 10);
@@ -70,9 +78,32 @@ function isValidISODate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-function ensureCeremonyDates(ceremonyData) {
+function getCeremonyDatePreset(ceremonyId) {
+  const preset = CEREMONY_DATE_PRESETS[ceremonyId];
+  if (!preset) {
+    return null;
+  }
+
+  const year = Number(todayISO().slice(0, 4));
+  const weekEnd = `${year}-${String(preset.endMonth).padStart(2, "0")}-${String(preset.endDay).padStart(2, "0")}`;
+  return {
+    key: `${year}-${ceremonyId}-${preset.endMonth}-${preset.endDay}`,
+    weekStart: addDaysISO(weekEnd, -7),
+    weekEnd,
+  };
+}
+
+function ensureCeremonyDates(ceremonyData, ceremonyId) {
   const today = todayISO();
   const currentYear = Number(today.slice(0, 4));
+  const preset = getCeremonyDatePreset(ceremonyId);
+
+  if (preset && ceremonyData.datePresetKey !== preset.key) {
+    ceremonyData.weekStart = preset.weekStart;
+    ceremonyData.weekEnd = preset.weekEnd;
+    ceremonyData.datePresetKey = preset.key;
+    return;
+  }
 
   if (!isValidISODate(ceremonyData.weekStart) || Number(ceremonyData.weekStart.slice(0, 4)) < currentYear) {
     ceremonyData.weekStart = today;
@@ -215,7 +246,7 @@ function normalizeState(rawState) {
     }
 
     const ceremonyData = state.ceremonyData[ceremonyId];
-    ensureCeremonyDates(ceremonyData);
+    ensureCeremonyDates(ceremonyData, ceremonyId);
     ceremonyData.seekerStart = ceremonyData.seekerStart ?? "";
     ceremonyData.fellowships = ceremonyData.fellowships || {};
     ceremonyData.targets = {
@@ -1011,7 +1042,7 @@ function getCeremonyData(state, ceremonyId) {
       fellowshipTargets: createEmptyFellowshipTargets(),
     };
   }
-  ensureCeremonyDates(state.ceremonyData[normalizedCeremonyId]);
+  ensureCeremonyDates(state.ceremonyData[normalizedCeremonyId], normalizedCeremonyId);
   return state.ceremonyData[normalizedCeremonyId];
 }
 
@@ -1036,7 +1067,7 @@ async function handleStatePatch(request, env) {
       ceremonyData.weekStart = patch.ceremonySettings.weekStart || "";
       ceremonyData.weekEnd = patch.ceremonySettings.weekEnd || "";
       ceremonyData.seekerStart = patch.ceremonySettings.seekerStart || "";
-      ensureCeremonyDates(ceremonyData);
+      ensureCeremonyDates(ceremonyData, patch.ceremonyId);
     }
   } else if (patch.type === "value") {
     const { fellowship, dateId, itemKey } = patch;

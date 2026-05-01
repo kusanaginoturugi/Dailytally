@@ -171,6 +171,14 @@ const REFRESH_INTERVAL_MS = 15000;
 const SETTINGS_SCHEMA_VERSION = 2;
 const FINAL_ROW_ID = "__final__";
 const DEFAULT_REPORT_BRANCH_CODE = "99300";
+const CEREMONY_DATE_PRESETS = {
+  "jizo-sonno": { endMonth: 6, endDay: 20 },
+  "segaki-kuyo": { endMonth: 8, endDay: 9 },
+  "hokuto-chinatsu": { endMonth: 9, endDay: 13 },
+  "rokuson-hoju": { endMonth: 10, endDay: 11 },
+  "chosei-minami": { endMonth: 11, endDay: 8 },
+  "myozen-enma": { endMonth: 11, endDay: 23 },
+};
 
 const appTitle = document.getElementById("appTitle");
 const tabButtons = document.getElementById("tabButtons");
@@ -347,9 +355,32 @@ function parseAdminDateInput(value) {
   return toISODate(date);
 }
 
-function ensureCeremonyDates(ceremonyData) {
+function getCeremonyDatePreset(ceremonyId) {
+  const preset = CEREMONY_DATE_PRESETS[ceremonyId];
+  if (!preset) {
+    return null;
+  }
+
+  const year = new Date().getFullYear();
+  const weekEnd = toISODate(new Date(year, preset.endMonth - 1, preset.endDay));
+  return {
+    key: `${year}-${ceremonyId}-${preset.endMonth}-${preset.endDay}`,
+    weekStart: addDaysISO(weekEnd, -7),
+    weekEnd,
+  };
+}
+
+function ensureCeremonyDates(ceremonyData, ceremonyId = getActiveCeremonyConfig().id) {
   const today = toISODate(new Date());
   const currentYear = new Date().getFullYear();
+  const preset = getCeremonyDatePreset(ceremonyId);
+
+  if (preset && ceremonyData.datePresetKey !== preset.key) {
+    ceremonyData.weekStart = preset.weekStart;
+    ceremonyData.weekEnd = preset.weekEnd;
+    ceremonyData.datePresetKey = preset.key;
+    return;
+  }
 
   if (!isValidISODate(ceremonyData.weekStart) || parseISODate(ceremonyData.weekStart).getFullYear() < currentYear) {
     ceremonyData.weekStart = today;
@@ -382,7 +413,7 @@ function getCeremonyConfig(ceremonyId) {
 
 function createEmptyCeremonyData(ceremonyConfig = getActiveCeremonyConfig()) {
   const today = toISODate(new Date());
-  return {
+  const data = {
     weekStart: today,
     weekEnd: addDaysISO(today, 7),
     seekerStart: ceremonyConfig.seekerStart || "",
@@ -390,6 +421,8 @@ function createEmptyCeremonyData(ceremonyConfig = getActiveCeremonyConfig()) {
     targets: createEmptyTargets(),
     fellowshipTargets: createEmptyFellowshipTargets(),
   };
+  ensureCeremonyDates(data, ceremonyConfig.id);
+  return data;
 }
 
 function getActiveCeremonyData() {
@@ -567,7 +600,7 @@ function normalizeStateShape(targetState) {
     }
 
     const ceremonyData = targetState.ceremonyData[ceremony.id];
-    ensureCeremonyDates(ceremonyData);
+    ensureCeremonyDates(ceremonyData, ceremony.id);
     ceremonyData.seekerStart = ceremonyData.seekerStart ?? (ceremony.seekerStart || "");
     ceremonyData.fellowships = ceremonyData.fellowships || {};
     ceremonyData.targets = {
