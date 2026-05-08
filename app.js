@@ -1090,32 +1090,30 @@ function renderInputPage(name) {
 
   fillHeaderRow(content.querySelector("#inputHeaderRow"));
   const tbody = content.querySelector("tbody");
-  if (!usesSummaryTargets()) {
-    const targetRow = document.createElement("tr");
-    targetRow.className = "target-row";
+  const targetRow = document.createElement("tr");
+  targetRow.className = "target-row";
 
-    const targetLabelCell = document.createElement("th");
-    targetLabelCell.textContent = "目標";
-    targetRow.appendChild(targetLabelCell);
+  const targetLabelCell = document.createElement("th");
+  targetLabelCell.textContent = "目標";
+  targetRow.appendChild(targetLabelCell);
 
-    const targetsEditable = canEditTargetRow(name);
+  const targetsEditable = canEditTargetRow(name);
 
-    getActiveItems().forEach((item) => {
-      const td = document.createElement("td");
-      const currentValue = getTargetValue(name, item.key);
+  getActiveItems().forEach((item) => {
+    const td = document.createElement("td");
+    const currentValue = getTargetValue(name, item.key);
 
-      if (targetsEditable) {
-        td.appendChild(createTargetInput(name, item.key, currentValue));
-        appendUnit(td, item.unit);
-      } else {
-        appendReadonlyValue(td, currentValue, item.unit);
-      }
+    if (targetsEditable) {
+      td.appendChild(createTargetInput(name, item.key, currentValue));
+      appendUnit(td, item.unit);
+    } else {
+      appendReadonlyValue(td, currentValue, item.unit);
+    }
 
-      targetRow.appendChild(td);
-    });
+    targetRow.appendChild(td);
+  });
 
-    tbody.appendChild(targetRow);
-  }
+  tbody.appendChild(targetRow);
 
   getWeekDates().forEach((date) => {
     const tr = document.createElement("tr");
