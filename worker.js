@@ -232,6 +232,7 @@ function normalizeState(rawState) {
         seekerStart: state.settings.seekerStart,
         fellowships: state.fellowships,
         targets: state.targets,
+        summaryTargetOverrides: state.summaryTargetOverrides || {},
         fellowshipTargets: state.fellowshipTargets,
       },
     };
@@ -245,6 +246,7 @@ function normalizeState(rawState) {
         seekerStart: ceremonyId === DEFAULT_CEREMONY_ID ? "2026-04-28" : "",
         fellowships: Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, {}])),
         targets: createEmptyTargets(),
+        summaryTargetOverrides: {},
         fellowshipTargets: createEmptyFellowshipTargets(),
       };
     }
@@ -256,6 +258,9 @@ function normalizeState(rawState) {
     ceremonyData.targets = {
       ...createEmptyTargets(),
       ...(ceremonyData.targets || {}),
+    };
+    ceremonyData.summaryTargetOverrides = {
+      ...(ceremonyData.summaryTargetOverrides || {}),
     };
     ceremonyData.fellowshipTargets = ceremonyData.fellowshipTargets || {};
 
@@ -1093,6 +1098,7 @@ function getCeremonyData(state, ceremonyId) {
       seekerStart: "",
       fellowships: Object.fromEntries(FELLOWSHIP_NAMES.map((name) => [name, {}])),
       targets: createEmptyTargets(),
+      summaryTargetOverrides: {},
       fellowshipTargets: createEmptyFellowshipTargets(),
     };
   }
@@ -1157,6 +1163,15 @@ async function handleStatePatch(request, env) {
       const ceremonyData = getCeremonyData(state, patch.ceremonyId);
       ceremonyData.targets[patch.itemKey] = toNumber(patch.value);
     }
+  } else if (patch.type === "summaryTarget") {
+    if (!canWriteAdmin(request)) {
+      return jsonResponse({ error: "Forbidden" }, { status: 403 });
+    }
+    const ceremonyData = getCeremonyData(state, patch.ceremonyId);
+    ceremonyData.summaryTargetOverrides = {
+      ...(ceremonyData.summaryTargetOverrides || {}),
+      [patch.itemKey]: toNumber(patch.value),
+    };
   } else if (patch.type === "users") {
     state.users = Array.isArray(patch.users) ? patch.users.map((user) => ({ ...createEmptyUser(), ...user })) : [];
   } else if (patch.type === "replace") {
