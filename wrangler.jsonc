@@ -3,12 +3,20 @@
   "name": "dailytally",
   "main": "worker.js",
   "compatibility_date": "2026-04-27",
+  "compatibility_flags": ["nodejs_compat_v2"],
   "observability": {
     "enabled": true
   },
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
   "assets": {
     "directory": ".",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "run_worker_first": ["/*"]
+  },
+  "browser": {
+    "binding": "BROWSER"
   },
   "d1_databases": [
     {
