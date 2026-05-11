@@ -48,7 +48,7 @@ const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DEFAULT_REPORT_BRANCH_CODE = "99300";
 const SESSION_COOKIE_NAME = "dailytally_session";
 const OIDC_COOKIE_NAME = "dailytally_oidc";
-const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const TENDO_LOGIN_URL = "https://tendo.net/advanced/login.php?url=/advanced/index.php";
 const TENDO_ONLINE_URL = "https://tendo.net/advanced/online.php";
 const CEREMONY_DATE_PRESETS = {
@@ -528,6 +528,7 @@ async function handleAuthCallback(request, env) {
   const user = normalizeOidcUser(claims);
   const session = await createSignedCookieValue(env.SESSION_SECRET, {
     user,
+    accessToken: tokenSet.access_token || "",
     exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
   });
 
@@ -543,12 +544,57 @@ function handleAuthLogout() {
   });
 }
 
-async function readSessionUser(request, env) {
+async function readSession(request, env) {
   const session = await readSignedCookieValue(env.SESSION_SECRET, parseCookies(request)[SESSION_COOKIE_NAME]);
   if (!session || session.exp < Math.floor(Date.now() / 1000)) {
     return null;
   }
-  return session.user || null;
+  if (isOidcConfigured(env) && !session.accessToken) {
+    return null;
+  }
+  return session;
+}
+
+async function readSessionUser(request, env) {
+  const session = await readSession(request, env);
+  return session?.user || null;
+}
+
+async function refreshSessionUser(request, env) {
+  const session = await readSession(request, env);
+  if (!session) {
+    return null;
+  }
+  if (!isOidcConfigured(env) || !session.accessToken) {
+    return { user: session.user || null };
+  }
+
+  try {
+    const config = await getOidcConfig(env);
+    if (!config.userinfo_endpoint) {
+      return { user: session.user || null };
+    }
+
+    const response = await fetch(config.userinfo_endpoint, {
+      headers: { authorization: `Bearer ${session.accessToken}` },
+    });
+    if (!response.ok) {
+      return { user: session.user || null };
+    }
+
+    const user = normalizeOidcUser(await response.json());
+    const updatedSession = await createSignedCookieValue(env.SESSION_SECRET, {
+      ...session,
+      user,
+      exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
+    });
+    return {
+      user,
+      cookie: buildCookie(SESSION_COOKIE_NAME, updatedSession, { maxAge: SESSION_TTL_SECONDS }),
+    };
+  } catch (_error) {
+    return { user: session.user || null };
+  }
 }
 
 function requestWithUserHeaders(request, user) {
@@ -1136,6 +1182,11 @@ async function handleApi(request, env) {
   }
 
   if (url.pathname === "/api/me" && request.method === "GET") {
+    const refreshed = await refreshSessionUser(request, env);
+    if (refreshed?.user) {
+      const headers = refreshed.cookie ? { "set-cookie": refreshed.cookie } : {};
+      return jsonResponse(refreshed.user, { headers });
+    }
     return jsonResponse(getCurrentUser(request));
   }
 

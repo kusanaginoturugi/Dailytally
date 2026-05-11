@@ -181,6 +181,7 @@ const CEREMONY_DATE_PRESETS = {
 };
 
 const appTitle = document.getElementById("appTitle");
+const userStatus = document.getElementById("userStatus");
 const tabButtons = document.getElementById("tabButtons");
 const pageContainer = document.getElementById("pageContainer");
 
@@ -236,6 +237,17 @@ async function loadCurrentUser() {
 function normalizeCurrentUser(user) {
   const normalized = { ...createEmptyUser(), ...(user || {}) };
   return Object.values(normalized).some((value) => String(value || "").trim() !== "") ? normalized : null;
+}
+
+function getCurrentUserLabel() {
+  if (!hasAuthenticatedUser()) {
+    return "未ログイン";
+  }
+
+  const username = currentUser.loginId || currentUser.email || currentUser.name || "ユーザー";
+  const fellowship = currentUser.fellowship || "伝道会未設定";
+  const role = currentUser.role === "admin" ? " / 権限: 管理者" : "";
+  return `ユーザー: ${username} / 伝道会: ${fellowship}${role}`;
 }
 
 function getSavedActiveTab() {
@@ -1581,6 +1593,7 @@ function renderSummaryPage() {
 function render() {
   renderTabs();
   appTitle.textContent = `${getActiveCeremonyConfig().name}毎日集計`;
+  userStatus.textContent = getCurrentUserLabel();
 
   if (activeTab === "summary") {
     renderSummaryPage();

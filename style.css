@@ -28,6 +28,13 @@ h1 {
   margin: 0;
 }
 
+.user-status {
+  margin: 8px 0 0;
+  color: #52525b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 main {
   max-width: 1400px;
   margin: 0 auto;
