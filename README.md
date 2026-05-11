@@ -76,6 +76,16 @@ authentik側のProvider設定:
 
 認証情報が切り替わらないときは、authentik ではなく Dailytally 側のセッションを切るために `https://<デプロイ先>/auth/logout` を開いてから、もう一度ログインしてください。authentik のログアウトだけでは Dailytally の Cookie が残る場合があります。
 
+### ローカル開発
+
+`wrangler dev` では `.dev.vars` の `LOCAL_AUTH_BYPASS=true` により、localhost だけ SSO を通さず管理者ユーザーとして動作します。
+
+```
+npm run dev
+```
+
+ローカルのユーザー情報を変えたい場合は `.dev.vars` の `LOCAL_AUTH_*` を変更してください。
+
 ### 権限の考え方
 
 - `dailytally-admin` が付いているユーザーは管理者

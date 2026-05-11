@@ -301,6 +301,25 @@ function isOidcConfigured(env) {
   return Boolean(env.AUTHENTIK_ISSUER && env.AUTHENTIK_CLIENT_ID && env.AUTHENTIK_CLIENT_SECRET && env.SESSION_SECRET);
 }
 
+function isLocalRequest(request) {
+  const hostname = new URL(request.url).hostname;
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function isLocalAuthBypassEnabled(request, env) {
+  return isLocalRequest(request) && String(env.LOCAL_AUTH_BYPASS || "").toLowerCase() === "true";
+}
+
+function getLocalDevUser(env) {
+  return {
+    loginId: env.LOCAL_AUTH_LOGIN_ID || "local-admin",
+    fellowship: env.LOCAL_AUTH_FELLOWSHIP || "",
+    name: env.LOCAL_AUTH_NAME || "Local Admin",
+    email: env.LOCAL_AUTH_EMAIL || "local@example.test",
+    role: env.LOCAL_AUTH_ROLE || "admin",
+  };
+}
+
 function base64UrlEncode(input) {
   const bytes = input instanceof Uint8Array ? input : new TextEncoder().encode(String(input));
   let binary = "";
@@ -562,6 +581,11 @@ function requestWithUserHeaders(request, user) {
 }
 
 async function authenticateRequest(request, env) {
+  if (isLocalAuthBypassEnabled(request, env)) {
+    const user = getLocalDevUser(env);
+    return { request: requestWithUserHeaders(request, user), user };
+  }
+
   if (!isOidcConfigured(env)) {
     return { request };
   }
