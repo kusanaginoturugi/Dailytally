@@ -291,6 +291,14 @@ function addDaysISO(iso, days) {
   return toISODate(date);
 }
 
+function todayISOJST() {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function currentYearJST() {
+  return Number(todayISOJST().slice(0, 4));
+}
+
 function getWeekDates() {
   const ceremonyData = getActiveCeremonyData();
   if (!ceremonyData.weekStart || !ceremonyData.weekEnd) {
@@ -339,7 +347,7 @@ function parseAdminDateInput(value) {
   const normalized = trimmed.replace(/[.／]/g, "/").replace(/-/g, "/");
   const fullDate = normalized.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
   const shortDate = normalized.match(/^(\d{1,2})\/(\d{1,2})$/);
-  const year = fullDate ? Number(fullDate[1]) : new Date().getFullYear();
+  const year = fullDate ? Number(fullDate[1]) : currentYearJST();
   const month = Number(fullDate ? fullDate[2] : shortDate?.[1]);
   const day = Number(fullDate ? fullDate[3] : shortDate?.[2]);
 
@@ -361,7 +369,7 @@ function getCeremonyDatePreset(ceremonyId) {
     return null;
   }
 
-  const year = new Date().getFullYear();
+  const year = currentYearJST();
   const weekEnd = toISODate(new Date(year, preset.endMonth - 1, preset.endDay));
   return {
     key: `${year}-${ceremonyId}-${preset.endMonth}-${preset.endDay}`,
@@ -371,8 +379,8 @@ function getCeremonyDatePreset(ceremonyId) {
 }
 
 function ensureCeremonyDates(ceremonyData, ceremonyId = getActiveCeremonyConfig().id) {
-  const today = toISODate(new Date());
-  const currentYear = new Date().getFullYear();
+  const today = todayISOJST();
+  const currentYear = currentYearJST();
   const preset = getCeremonyDatePreset(ceremonyId);
 
   if (
@@ -416,7 +424,7 @@ function getCeremonyConfig(ceremonyId) {
 }
 
 function createEmptyCeremonyData(ceremonyConfig = getActiveCeremonyConfig()) {
-  const today = toISODate(new Date());
+  const today = todayISOJST();
   const data = {
     weekStart: today,
     weekEnd: addDaysISO(today, 7),
@@ -501,9 +509,10 @@ function createDefaultState() {
 
 function normalizeStateShape(targetState) {
   if (!targetState.settings) {
+    const today = todayISOJST();
     targetState.settings = {
-      weekStart: toISODate(new Date()),
-      weekEnd: addDaysISO(toISODate(new Date()), 6),
+      weekStart: today,
+      weekEnd: addDaysISO(today, 6),
       itemCount: 10,
       activeTab: "admin",
       seekerStart: "2026-04-28",
@@ -518,7 +527,7 @@ function normalizeStateShape(targetState) {
   }
 
   if (!targetState.settings.weekStart) {
-    targetState.settings.weekStart = toISODate(new Date());
+    targetState.settings.weekStart = todayISOJST();
   }
 
   if (!targetState.settings.weekEnd) {
@@ -653,10 +662,11 @@ function loadLocalState() {
     }
     try {
       const legacyParsed = JSON.parse(legacyRaw);
+      const today = todayISOJST();
       const migrated = {
         settings: {
-          weekStart: toISODate(new Date()),
-          weekEnd: addDaysISO(toISODate(new Date()), 6),
+          weekStart: today,
+          weekEnd: addDaysISO(today, 6),
           itemCount: 10,
           activeTab: "admin",
           seekerStart: "2026-04-28",
@@ -875,7 +885,7 @@ function canEditTargets() {
 }
 
 function canEditDate(dateId) {
-  return dateId >= toISODate(new Date());
+  return dateId >= todayISOJST();
 }
 
 function getCurrentFellowship() {
@@ -1242,7 +1252,7 @@ function renderAdminPage() {
   weekStartInput.addEventListener("change", () => {
     const activeData = getActiveCeremonyData();
     const preset = getCeremonyDatePreset(getActiveCeremonyConfig().id);
-    const nextWeekStart = parseAdminDateInput(weekStartInput.value) || toISODate(new Date());
+    const nextWeekStart = parseAdminDateInput(weekStartInput.value) || todayISOJST();
     activeData.weekStart = nextWeekStart;
     activeData.weekEnd = addDaysISO(nextWeekStart, 7);
     if (preset) {

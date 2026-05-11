@@ -593,11 +593,15 @@ function readSSOHeader(request, name) {
   }
 }
 
-function getCurrentUser(request) {
-  const groups = readSSOHeader(request, "x-authentik-groups")
-    .split("|")
+function parseSSOGroups(value) {
+  return String(value || "")
+    .split(/[,\s|]+/)
     .map((group) => group.trim())
     .filter(Boolean);
+}
+
+function getCurrentUser(request) {
+  const groups = parseSSOGroups(readSSOHeader(request, "x-authentik-groups"));
   const fellowship = readSSOHeader(request, "x-dailytally-fellowship") || groups.find((group) => FELLOWSHIP_NAMES.includes(group)) || "";
   const role =
     readSSOHeader(request, "x-dailytally-role") ||
