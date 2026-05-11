@@ -1,7 +1,7 @@
 name = "dailytally"
 main = "worker.js"
 compatibility_date = "2026-04-27"
-compatibility_flags = [ "nodejs_compat", "nodejs_compat_v2" ]
+compatibility_flags = [ "nodejs_compat" ]
 
 [triggers]
 crons = [ "*/15 * * * *" ]
