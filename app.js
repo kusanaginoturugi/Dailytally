@@ -255,7 +255,13 @@ function isKnownTab(tabName) {
   if (tabName === "admin") {
     return canAccessAdmin();
   }
-  return tabName === "summary" || fellowshipNames.includes(tabName);
+  if (tabName === "summary") {
+    return true;
+  }
+  if (!fellowshipNames.includes(tabName)) {
+    return false;
+  }
+  return canEditFellowship(tabName);
 }
 
 function hasAuthenticatedUser() {
@@ -805,8 +811,12 @@ function saveSettings() {
   });
 }
 
+function isInputActive() {
+  return Boolean(document.activeElement && ["INPUT", "SELECT"].includes(document.activeElement.tagName));
+}
+
 async function refreshStateFromDatabase() {
-  if (document.activeElement && ["INPUT", "SELECT"].includes(document.activeElement.tagName)) {
+  if (isInputActive()) {
     return;
   }
 
@@ -814,6 +824,10 @@ async function refreshStateFromDatabase() {
     const response = await apiFetch(API_STATE_URL);
     if (!response.ok) {
       throw new Error(`State API returned ${response.status}`);
+    }
+
+    if (isInputActive()) {
+      return;
     }
 
     state = normalizeStateShape(await response.json());
