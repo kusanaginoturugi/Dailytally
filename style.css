@@ -283,6 +283,12 @@ main {
   width: 52px;
 }
 
+.input-page .data-table input.compact-number,
+.input-page .data-table input.target-input.compact-number {
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
 .input-page .input-value {
   min-width: 52px;
 }

@@ -936,34 +936,33 @@ function selectOnFocus(input) {
   });
 }
 
-function createTargetInput(name, itemKey, currentValue) {
+function updateNumberInputSize(input) {
+  input.classList.toggle("compact-number", input.value.length >= 4);
+}
+
+function createNumberInput(currentValue, onChange, className = "") {
   const input = document.createElement("input");
-  input.className = "target-input";
+  input.className = className;
   input.type = "text";
   input.inputMode = "numeric";
   input.pattern = "[0-9]*";
   input.value = currentValue === 0 ? "" : String(currentValue);
+  updateNumberInputSize(input);
   selectOnFocus(input);
   input.addEventListener("input", () => {
     input.value = input.value.replace(/\D/g, "");
-    setTargetValue(name, itemKey, input.value);
+    updateNumberInputSize(input);
+    onChange(input.value);
   });
   return input;
 }
 
+function createTargetInput(name, itemKey, currentValue) {
+  return createNumberInput(currentValue, (value) => setTargetValue(name, itemKey, value), "target-input");
+}
+
 function createSummaryTargetInput(itemKey, currentValue) {
-  const input = document.createElement("input");
-  input.className = "target-input";
-  input.type = "text";
-  input.inputMode = "numeric";
-  input.pattern = "[0-9]*";
-  input.value = currentValue === 0 ? "" : String(currentValue);
-  selectOnFocus(input);
-  input.addEventListener("input", () => {
-    input.value = input.value.replace(/\D/g, "");
-    setSummaryTargetValue(itemKey, input.value);
-  });
-  return input;
+  return createNumberInput(currentValue, (value) => setSummaryTargetValue(itemKey, value), "target-input");
 }
 
 function appendUnit(cell, unit) {
@@ -1156,16 +1155,7 @@ function renderInputPage(name) {
       const currentValue = getValue(name, date.id, item.key);
 
       if (canEditDateForFellowship(name, date.id)) {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.inputMode = "numeric";
-        input.pattern = "[0-9]*";
-        input.value = currentValue === 0 ? "" : String(currentValue);
-        selectOnFocus(input);
-        input.addEventListener("input", () => {
-          input.value = input.value.replace(/\D/g, "");
-          setValue(name, date.id, item.key, input.value);
-        });
+        const input = createNumberInput(currentValue, (value) => setValue(name, date.id, item.key, value));
         td.appendChild(input);
         appendUnit(td, item.unit);
       } else {
@@ -1188,16 +1178,7 @@ function renderInputPage(name) {
     const currentValue = getFinalValue(name, item.key);
 
     if (canEditDateForFellowship(name, getActiveCeremonyData().weekEnd)) {
-      const input = document.createElement("input");
-      input.type = "text";
-      input.inputMode = "numeric";
-      input.pattern = "[0-9]*";
-      input.value = currentValue === 0 ? "" : String(currentValue);
-      selectOnFocus(input);
-      input.addEventListener("input", () => {
-        input.value = input.value.replace(/\D/g, "");
-        setValue(name, getActiveCeremonyData().weekEnd, item.key, input.value);
-      });
+      const input = createNumberInput(currentValue, (value) => setValue(name, getActiveCeremonyData().weekEnd, item.key, value));
       td.appendChild(input);
       appendUnit(td, item.unit);
     } else {
