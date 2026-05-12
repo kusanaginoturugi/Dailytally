@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>毎日集計</title>
-    <link rel="stylesheet" href="style.css?v=20260511-user-status" />
+    <link rel="stylesheet" href="style.css?v=20260512-report-history" />
   </head>
   <body>
     <header>
@@ -88,6 +88,10 @@
             </label>
           </div>
           <p id="reportStatus" class="report-status"></p>
+          <div class="report-history" aria-label="オンライン報告履歴">
+            <h3>送信履歴</h3>
+            <ul id="reportHistoryList"></ul>
+          </div>
         </section>
         <section class="user-list-section" aria-label="ユーザー一覧">
           <div class="user-list-header">
@@ -151,6 +155,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="app.js?v=20260511-user-status"></script>
+    <script src="app.js?v=20260512-report-history"></script>
   </body>
 </html>

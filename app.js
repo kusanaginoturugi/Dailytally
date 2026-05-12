@@ -496,6 +496,7 @@ function createDefaultReportAutomation() {
     lastSuccessAt: "",
     lastError: "",
     lastSentKey: "",
+    history: [],
   };
 }
 
@@ -1200,7 +1201,27 @@ function getReportStatusText() {
   const status = report.enabled ? "有効" : "無効";
   const lastSuccess = report.lastSuccessAt ? ` 最終成功: ${report.lastSuccessAt}` : "";
   const lastError = report.lastError ? ` 最終エラー: ${report.lastError}` : "";
-  return `状態: ${status} / 最終日の ${report.sendTime} に送信${lastSuccess}${lastError}`;
+  return `状態: ${status} / 期間中は毎日 ${report.sendTime} に送信${lastSuccess}${lastError}`;
+}
+
+function renderReportHistory(listEl) {
+  const history = Array.isArray(state.reportAutomation?.history) ? state.reportAutomation.history : [];
+  listEl.innerHTML = "";
+
+  if (!history.length) {
+    const item = document.createElement("li");
+    item.textContent = "履歴はまだありません";
+    listEl.appendChild(item);
+    return;
+  }
+
+  history.slice(0, 10).forEach((entry) => {
+    const item = document.createElement("li");
+    const status = entry.status || "記録";
+    const message = entry.message ? ` / ${entry.message}` : "";
+    item.textContent = `${entry.at || ""} ${status}${message}`;
+    listEl.appendChild(item);
+  });
 }
 
 function renderAdminPage() {
@@ -1217,6 +1238,7 @@ function renderAdminPage() {
   const reportBranchCodeInput = content.querySelector("#reportBranchCode");
   const reportNotifyEmailInput = content.querySelector("#reportNotifyEmail");
   const reportStatus = content.querySelector("#reportStatus");
+  const reportHistoryList = content.querySelector("#reportHistoryList");
   const ceremonyData = getActiveCeremonyData();
   ensureCeremonyDates(ceremonyData);
   state.reportAutomation = {
@@ -1242,6 +1264,7 @@ function renderAdminPage() {
   reportBranchCodeInput.value = state.reportAutomation.branchCode || DEFAULT_REPORT_BRANCH_CODE;
   reportNotifyEmailInput.value = state.reportAutomation.notifyEmail || "";
   reportStatus.textContent = getReportStatusText();
+  renderReportHistory(reportHistoryList);
 
   ceremonySelect.addEventListener("change", () => {
     state.settings.ceremonyId = ceremonySelect.value;
@@ -1299,6 +1322,7 @@ function renderAdminPage() {
       notifyEmail: reportNotifyEmailInput.value.trim(),
     };
     reportStatus.textContent = getReportStatusText();
+    renderReportHistory(reportHistoryList);
     saveSettings();
   };
 

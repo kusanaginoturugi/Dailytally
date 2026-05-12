@@ -153,6 +153,7 @@ function createDefaultReportAutomation() {
     lastSuccessAt: "",
     lastError: "",
     lastSentKey: "",
+    history: [],
   };
 }
 
@@ -769,9 +770,22 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
-function getDueSendKey(state) {
+function getDueSendKey(state, today) {
   const ceremonyData = getCeremonyData(state, state.settings.ceremonyId);
-  return `${state.settings.ceremonyId}:${ceremonyData.weekEnd}:${state.reportAutomation.sendTime}`;
+  return `${state.settings.ceremonyId}:${today || ceremonyData.weekEnd}:${state.reportAutomation.sendTime}`;
+}
+
+function addReportHistory(report, entry) {
+  report.history = [
+    {
+      at: formatJSTTimestamp(),
+      key: report.lastAttemptKey || "",
+      status: "",
+      message: "",
+      ...entry,
+    },
+    ...(Array.isArray(report.history) ? report.history : []),
+  ].slice(0, 20);
 }
 
 function isReportDue(state, date = new Date()) {
@@ -787,8 +801,8 @@ function isReportDue(state, date = new Date()) {
   const currentMinutes = jst.getUTCHours() * 60 + jst.getUTCMinutes();
   const targetMinutes = hour * 60 + minute;
 
-  const sendKey = getDueSendKey(state);
-  return today === ceremonyData.weekEnd && currentMinutes >= targetMinutes && report.lastSentKey !== sendKey && report.lastAttemptKey !== sendKey;
+  const sendKey = getDueSendKey(state, today);
+  return today >= ceremonyData.weekStart && today <= ceremonyData.weekEnd && currentMinutes >= targetMinutes && report.lastSentKey !== sendKey && report.lastAttemptKey !== sendKey;
 }
 
 function parseCookieHeaders(headers) {
@@ -1056,15 +1070,22 @@ async function sendNotification(env, report, subject, body) {
 
 async function runScheduledReport(env) {
   const state = await readState(env.DB);
-  if (!isReportDue(state)) {
+  const now = new Date();
+  if (!isReportDue(state, now)) {
     return;
   }
 
   const report = state.reportAutomation;
-  const sendKey = getDueSendKey(state);
+  const sendKey = getDueSendKey(state, nowJST(now).toISOString().slice(0, 10));
   report.lastAttemptAt = formatJSTTimestamp();
   report.lastAttemptKey = sendKey;
   report.lastError = "";
+  addReportHistory(report, {
+    at: report.lastAttemptAt,
+    key: sendKey,
+    status: "送信開始",
+    message: `${report.sendTime} の自動送信を開始`,
+  });
   await writeState(env.DB, state);
 
   try {
@@ -1075,10 +1096,22 @@ async function runScheduledReport(env) {
     report.lastSuccessAt = formatJSTTimestamp();
     report.lastSentKey = sendKey;
     report.lastError = "";
+    addReportHistory(report, {
+      at: report.lastSuccessAt,
+      key: sendKey,
+      status: "成功",
+      message: "オンライン報告を送信しました",
+    });
     await writeState(env.DB, state);
     await sendNotification(env, report, "オンライン報告を送信しました", `送信完了: ${report.lastSuccessAt}`);
   } catch (error) {
     report.lastError = error instanceof Error ? error.message : String(error);
+    addReportHistory(report, {
+      at: formatJSTTimestamp(),
+      key: sendKey,
+      status: "失敗",
+      message: report.lastError,
+    });
     await writeState(env.DB, state);
     await sendNotification(env, report, "オンライン報告の送信に失敗しました", report.lastError);
     throw error;

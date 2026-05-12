@@ -129,6 +129,26 @@ main {
   font-size: 14px;
 }
 
+.report-history {
+  margin-top: 16px;
+  color: #3f3f46;
+  font-size: 14px;
+}
+
+.report-history h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.report-history ul {
+  margin: 0;
+  padding-left: 1.4em;
+}
+
+.report-history li + li {
+  margin-top: 4px;
+}
+
 .user-list-section {
   margin-top: 48px;
 }
