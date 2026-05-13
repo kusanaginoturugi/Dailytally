@@ -1348,27 +1348,35 @@ function getDayTotals(dateId) {
   return totals;
 }
 
-function addTotals(targetTotals, sourceTotals) {
-  getActiveItems().forEach((item) => {
-    targetTotals[item.key] += sourceTotals[item.key] || 0;
-  });
-}
-
-function getCumulativeDayTotals(dateId) {
-  const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
-  const today = todayISOJST();
-
-  if (dateId > today) {
-    return null;
-  }
+function getCarriedValue(name, dateId, itemKey) {
+  let carriedValue = 0;
 
   getWeekDates().forEach((date) => {
     if (date.id <= dateId) {
-      addTotals(totals, getDayTotals(date.id));
+      const value = getValue(name, date.id, itemKey);
+      if (value > 0) {
+        carriedValue = value;
+      }
     }
   });
 
+  return carriedValue;
+}
+
+function getCarriedDayTotals(dateId) {
+  const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
+
+  fellowshipNames.forEach((name) => {
+    getActiveItems().forEach((item) => {
+      totals[item.key] += getCarriedValue(name, dateId, item.key);
+    });
+  });
+
   return totals;
+}
+
+function getCumulativeDayTotals(dateId) {
+  return dateId <= todayISOJST() ? getCarriedDayTotals(dateId) : null;
 }
 
 function getFinalTotals() {
@@ -1388,12 +1396,13 @@ function getCumulativeFinalTotals() {
     return null;
   }
 
+  const finalTotals = getFinalTotals();
+  const carriedTotals = getCarriedDayTotals(getActiveCeremonyData().weekEnd);
   const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
 
-  getWeekDates().forEach((date) => {
-    addTotals(totals, getDayTotals(date.id));
+  getActiveItems().forEach((item) => {
+    totals[item.key] = finalTotals[item.key] || carriedTotals[item.key];
   });
-  addTotals(totals, getFinalTotals());
 
   return totals;
 }

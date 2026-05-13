@@ -752,24 +752,31 @@ function getDayTotals(ceremonyData, dateId) {
   return totals;
 }
 
-function addReportTotals(targetTotals, sourceTotals) {
-  REPORT_ITEMS.forEach((item) => {
-    targetTotals[item.key] += sourceTotals[item.key] || 0;
+function getCarriedValue(ceremonyData, fellowship, dateId, itemKey) {
+  let carriedValue = 0;
+  getWeekDates(ceremonyData).forEach((date) => {
+    if (date.id <= dateId) {
+      const value = getStoredValue(ceremonyData, fellowship, date.id, itemKey);
+      if (value > 0) {
+        carriedValue = value;
+      }
+    }
   });
+  return carriedValue;
+}
+
+function getCarriedDayTotals(ceremonyData, dateId) {
+  const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
+  FELLOWSHIP_NAMES.forEach((fellowship) => {
+    REPORT_ITEMS.forEach((item) => {
+      totals[item.key] += getCarriedValue(ceremonyData, fellowship, dateId, item.key);
+    });
+  });
+  return totals;
 }
 
 function getCumulativeDayTotals(ceremonyData, dateId) {
-  const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
-  if (dateId > todayISO()) {
-    return null;
-  }
-
-  getWeekDates(ceremonyData).forEach((date) => {
-    if (date.id <= dateId) {
-      addReportTotals(totals, getDayTotals(ceremonyData, date.id));
-    }
-  });
-  return totals;
+  return dateId <= todayISO() ? getCarriedDayTotals(ceremonyData, dateId) : null;
 }
 
 function getFinalTotals(ceremonyData) {
@@ -787,11 +794,12 @@ function getCumulativeFinalTotals(ceremonyData) {
     return null;
   }
 
+  const finalTotals = getFinalTotals(ceremonyData);
+  const carriedTotals = getCarriedDayTotals(ceremonyData, ceremonyData.weekEnd);
   const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
-  getWeekDates(ceremonyData).forEach((date) => {
-    addReportTotals(totals, getDayTotals(ceremonyData, date.id));
+  REPORT_ITEMS.forEach((item) => {
+    totals[item.key] = finalTotals[item.key] || carriedTotals[item.key];
   });
-  addReportTotals(totals, getFinalTotals(ceremonyData));
   return totals;
 }
 
