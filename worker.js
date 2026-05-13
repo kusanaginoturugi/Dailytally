@@ -1229,17 +1229,22 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
   }
 
   const postUrl = env.REPORT_ONLINE_POST_URL;
-  const fileField = env.REPORT_ONLINE_FILE_FIELD || "file";
+  const fileField = env.REPORT_ONLINE_FILE_FIELD || "up_file[]";
+  const submitField = env.REPORT_ONLINE_SUBMIT_FIELD || "kannondo";
+  const submitValue = submitField === "mirokuji" ? "弥勒寺へ送信" : "観音堂へ送信";
   if (!postUrl) {
     throw new Error("REPORT_ONLINE_POST_URL is not configured");
   }
 
   const formData = new FormData();
   formData.set("name", state.reportAutomation.senderName);
-  formData.set("branch", state.reportAutomation.branchCode);
+  formData.set("dendokai", state.reportAutomation.branchName);
+  formData.set("title", `${state.settings.ceremonyName || "毎日集計"} 集計表`);
+  formData.set("text", "");
   formData.set(fileField, new File([pdfBuffer], "dailytally-report.pdf", { type: "application/pdf" }));
+  formData.set(submitField, submitValue);
 
-  const response = await fetch(postUrl, {
+  const response = await fetch(new URL(postUrl, TENDO_ONLINE_URL).toString(), {
     method: "POST",
     headers: { cookie },
     body: formData,
@@ -1247,7 +1252,7 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
   });
   const text = await response.text();
   if (!response.ok || /エラー|失敗|ログイン/.test(text)) {
-    throw new Error(`tendo.net report submit returned ${response.status}`);
+    throw new Error(`tendo.net report submit returned ${response.status}: url=${new URL(postUrl, TENDO_ONLINE_URL).toString()}`);
   }
 }
 
