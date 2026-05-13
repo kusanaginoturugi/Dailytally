@@ -806,6 +806,25 @@ function getFinalTotals(ceremonyData) {
   return totals;
 }
 
+function getTargetValue(ceremonyData, fellowship, itemKey) {
+  return Number(ceremonyData.fellowshipTargets?.[fellowship]?.[itemKey]) || 0;
+}
+
+function getTargetTotals(ceremonyData) {
+  const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
+  FELLOWSHIP_NAMES.forEach((fellowship) => {
+    REPORT_ITEMS.forEach((item) => {
+      totals[item.key] += getTargetValue(ceremonyData, fellowship, item.key);
+    });
+  });
+  return totals;
+}
+
+function getSummaryTargetValue(ceremonyData, itemKey, fallbackValue) {
+  const overrides = ceremonyData.summaryTargetOverrides || {};
+  return Object.prototype.hasOwnProperty.call(overrides, itemKey) ? Number(overrides[itemKey]) || 0 : fallbackValue;
+}
+
 function getCumulativeFinalTotals(ceremonyData) {
   if (ceremonyData.weekEnd > todayISO()) {
     return null;
@@ -894,6 +913,17 @@ function buildSummaryReportHtml(state) {
     </tr>
   `);
 
+  const targetTotals = getTargetTotals(ceremonyData);
+  rows.push(`
+    <tr class="target-row">
+      <th>目標</th>
+      ${REPORT_ITEMS.map((item) => {
+        const value = getSummaryTargetValue(ceremonyData, item.key, targetTotals[item.key]) || "";
+        return `<td><span class="value">${escapeHtml(value)}</span><span class="unit">${escapeHtml(item.unit)}</span></td>`;
+      }).join("")}
+    </tr>
+  `);
+
   getWeekDates(ceremonyData).forEach((date) => {
     const totals = getCumulativeDayTotals(ceremonyData, date.id);
     rows.push(`
@@ -923,16 +953,26 @@ function buildSummaryReportHtml(state) {
 <head>
   <meta charset="UTF-8" />
   <style>
-    @page { size: A4 landscape; margin: 12mm; }
+    @page { size: A4 landscape; }
     * { box-sizing: border-box; }
+    html,
     body {
+      width: 100%;
+      height: 100%;
       margin: 0;
       color: #000;
       background: #fff;
       font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", serif;
     }
+    .pdf-page {
+      width: 100%;
+      height: 194mm;
+      display: flex;
+      flex-direction: column;
+    }
     table {
       width: 100%;
+      flex: 1 1 auto;
       border-collapse: collapse;
       table-layout: fixed;
     }
@@ -979,22 +1019,21 @@ function buildSummaryReportHtml(state) {
       font-size: 11px;
       font-weight: 400;
     }
-    .final-row th,
-    .final-row td {
-      background: #f4f4f5;
-    }
     .note {
       margin: 0;
       border: 1.5px solid #000;
       border-top: 0;
       padding: 2px 6px;
       font-size: 14px;
+      flex: 0 0 auto;
     }
   </style>
 </head>
 <body>
-  <table>${rows.join("")}</table>
-  <p class="note">※水は種類を問わず、箱数で記入(1箱20リットルとして計算願います)</p>
+  <div class="pdf-page">
+    <table>${rows.join("")}</table>
+    <p class="note">※水は種類を問わず、箱数で記入(1箱20リットルとして計算願います)</p>
+  </div>
 </body>
 </html>`;
 }
@@ -1054,10 +1093,10 @@ async function generateSummaryPdf(env, state) {
       landscape: true,
       printBackground: true,
       margin: {
-        top: "15mm",
-        right: "12mm",
-        bottom: "15mm",
-        left: "12mm",
+        top: "8mm",
+        right: "8mm",
+        bottom: "8mm",
+        left: "8mm",
       },
     });
   } finally {
