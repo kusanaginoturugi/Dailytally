@@ -1356,6 +1356,11 @@ function addTotals(targetTotals, sourceTotals) {
 
 function getCumulativeDayTotals(dateId) {
   const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
+  const today = todayISOJST();
+
+  if (dateId > today) {
+    return null;
+  }
 
   getWeekDates().forEach((date) => {
     if (date.id <= dateId) {
@@ -1379,6 +1384,10 @@ function getFinalTotals() {
 }
 
 function getCumulativeFinalTotals() {
+  if (getActiveCeremonyData().weekEnd > todayISOJST()) {
+    return null;
+  }
+
   const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
 
   getWeekDates().forEach((date) => {
@@ -1606,7 +1615,7 @@ function renderSummaryPage() {
 
     getActiveItems().forEach((item) => {
       const td = document.createElement("td");
-      const value = dayTotals[item.key] || "";
+      const value = dayTotals?.[item.key] || "";
       td.innerHTML = `<span class="summary-value">${value}</span><span class="summary-unit">${item.unit}</span>`;
       tr.appendChild(td);
     });
@@ -1622,7 +1631,7 @@ function renderSummaryPage() {
 
   getActiveItems().forEach((item) => {
     const td = document.createElement("td");
-    const value = finalTotals[item.key] || "";
+    const value = finalTotals?.[item.key] || "";
     td.innerHTML = `<span class="summary-value">${value}</span><span class="summary-unit">${item.unit}</span>`;
     totalRow.appendChild(td);
   });

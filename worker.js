@@ -760,6 +760,10 @@ function addReportTotals(targetTotals, sourceTotals) {
 
 function getCumulativeDayTotals(ceremonyData, dateId) {
   const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
+  if (dateId > todayISO()) {
+    return null;
+  }
+
   getWeekDates(ceremonyData).forEach((date) => {
     if (date.id <= dateId) {
       addReportTotals(totals, getDayTotals(ceremonyData, date.id));
@@ -779,6 +783,10 @@ function getFinalTotals(ceremonyData) {
 }
 
 function getCumulativeFinalTotals(ceremonyData) {
+  if (ceremonyData.weekEnd > todayISO()) {
+    return null;
+  }
+
   const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
   getWeekDates(ceremonyData).forEach((date) => {
     addReportTotals(totals, getDayTotals(ceremonyData, date.id));
@@ -867,7 +875,7 @@ function buildSummaryReportHtml(state) {
       <tr>
         <th>${escapeHtml(date.label)}</th>
         ${REPORT_ITEMS.map((item) => {
-          const value = totals[item.key] || "";
+          const value = totals?.[item.key] || "";
           return `<td><span class="value">${escapeHtml(value)}</span><span class="unit">${escapeHtml(item.unit)}</span></td>`;
         }).join("")}
       </tr>
@@ -879,7 +887,7 @@ function buildSummaryReportHtml(state) {
     <tr class="final-row">
       <th>最終</th>
       ${REPORT_ITEMS.map((item) => {
-        const value = finalTotals[item.key] || "";
+        const value = finalTotals?.[item.key] || "";
         return `<td><span class="value">${escapeHtml(value)}</span><span class="unit">${escapeHtml(item.unit)}</span></td>`;
       }).join("")}
     </tr>
