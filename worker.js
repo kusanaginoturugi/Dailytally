@@ -918,6 +918,22 @@ function parseCookieHeaders(headers) {
     .join("; ");
 }
 
+function mergeCookies(...values) {
+  const pairs = new Map();
+  values
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(";"))
+    .map((cookie) => cookie.trim())
+    .filter(Boolean)
+    .forEach((cookie) => {
+      const index = cookie.indexOf("=");
+      if (index > 0) {
+        pairs.set(cookie.slice(0, index), cookie.slice(index + 1));
+      }
+    });
+  return Array.from(pairs, ([name, value]) => `${name}=${value}`).join("; ");
+}
+
 function extractLoginToken(html) {
   return html.match(/name="token"\s+value="([^"]+)"/)?.[1] || "";
 }
@@ -1138,7 +1154,7 @@ async function tendoLogin(env) {
 
   const response = await fetch(TENDO_LOGIN_URL, {
     method: "POST",
-    redirect: "follow",
+    redirect: "manual",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
       cookie,
@@ -1146,14 +1162,26 @@ async function tendoLogin(env) {
     },
     body,
   });
-  const html = await response.text();
-  const nextCookie = [cookie, parseCookieHeaders(response.headers)].filter(Boolean).join("; ");
+  let advancedPage = response;
+  let finalCookie = mergeCookies(cookie, parseCookieHeaders(response.headers));
+  for (let redirects = 0; redirects < 5 && advancedPage.status >= 300 && advancedPage.status < 400; redirects += 1) {
+    const location = advancedPage.headers.get("location");
+    if (!location) {
+      break;
+    }
+    advancedPage = await fetch(new URL(location, TENDO_LOGIN_URL).toString(), {
+      headers: { cookie: finalCookie },
+      redirect: "manual",
+    });
+    finalCookie = mergeCookies(finalCookie, parseCookieHeaders(advancedPage.headers));
+  }
+  const html = await advancedPage.text();
 
   if (!html.includes("/advanced/logout.php")) {
-    throw new Error("tendo.net login did not reach the advanced page");
+    throw new Error(`tendo.net login did not reach the advanced page: status=${advancedPage.status}`);
   }
 
-  return nextCookie;
+  return finalCookie;
 }
 
 async function generateSummaryPdf(env, state) {
