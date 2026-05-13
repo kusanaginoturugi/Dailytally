@@ -847,6 +847,34 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+function renderSummaryHeaderCell(item, ceremonyData) {
+  if (item.key === "seekers") {
+    const date = ceremonyData.seekerStart ? `<span class="horizontal-date">(${escapeHtml(formatShortDate(ceremonyData.seekerStart))}～)</span>` : "";
+    return `得道者数${date}`;
+  }
+  if (item.key === "tenchi") {
+    return "この護摩供に<br>向けての<br>天地免劫護摩木";
+  }
+  if (item.key === "goma") {
+    return "この護摩供に<br>向けての<br>各種護摩木";
+  }
+  if (item.key === "water") {
+    if (item.summaryLabel === "御神水・命泉・泉・龍華水・禄存五聖杯") {
+      return "御神水・命泉・<br>泉・龍華水・<br>禄存五聖杯";
+    }
+    if (item.summaryLabel === "御神水・泉・龍華水等") {
+      return "御神水・泉・<br>龍華水等";
+    }
+    if (item.summaryLabel === "御神水・命泉・泉・龍華水等") {
+      return "御神水・命泉・<br>泉・龍華水等";
+    }
+    if (item.summaryLabel === "御神水・命泉・泉・龍華水") {
+      return "御神水・命泉・<br>泉・龍華水";
+    }
+  }
+  return escapeHtml(item.summaryLabel);
+}
+
 function getDueSendKey(state, today) {
   const ceremonyData = getCeremonyData(state, state.settings.ceremonyId);
   return `${state.settings.ceremonyId}:${today || ceremonyData.weekEnd}:${state.reportAutomation.sendTime}`;
@@ -903,13 +931,13 @@ function buildSummaryReportHtml(state) {
       <th colspan="${REPORT_ITEMS.length + 1}">～第31回八大明王護摩供　集計表～　報告数は累計数です</th>
     </tr>
     <tr class="meta-row">
-      <th colspan="3"><span>聖院名:</span> 聖明王院</th>
-      <th colspan="3"><span>ご担当者名:</span> 尾ノ上裕美</th>
-      <th colspan="${Math.max(1, REPORT_ITEMS.length - 5)}"><span>電話番号:</span> 09041779036</th>
+      <th colspan="3"><span class="meta-label">聖院名:</span><span class="meta-value">聖明王院</span></th>
+      <th colspan="3" class="meta-person"><span class="meta-label">ご担当者名:</span><span class="meta-value">尾ノ上裕美</span></th>
+      <th colspan="${Math.max(1, REPORT_ITEMS.length - 5)}" class="meta-phone"><span class="meta-label">電話番号:</span><span class="meta-value">09041779036</span></th>
     </tr>
-    <tr>
+    <tr class="header-row">
       <th></th>
-      ${REPORT_ITEMS.map((item) => `<th>${escapeHtml(item.summaryLabel)}</th>`).join("")}
+      ${REPORT_ITEMS.map((item) => `<th>${renderSummaryHeaderCell(item, ceremonyData)}</th>`).join("")}
     </tr>
   `);
 
@@ -976,8 +1004,12 @@ function buildSummaryReportHtml(state) {
       border-collapse: collapse;
       table-layout: fixed;
     }
-    th, td {
+    th,
+    td {
+      position: relative;
       border: 1.5px solid #000;
+      background: #fff;
+      color: #000;
       height: 38px;
       padding: 3px 4px;
       text-align: center;
@@ -987,28 +1019,74 @@ function buildSummaryReportHtml(state) {
     }
     .title-row th {
       height: 34px;
-      font-size: 20px;
-      font-weight: 700;
+      font-size: 22px;
+      font-weight: 500;
     }
     .meta-row th {
+      position: relative;
       height: 30px;
-      text-align: left;
+      padding: 2px 8px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 400;
+    }
+    .meta-label {
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      white-space: nowrap;
+      z-index: 1;
+    }
+    .meta-value {
+      position: absolute;
+      inset: 2px 8px 2px 86px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .meta-person .meta-value {
+      left: 126px;
+    }
+    .meta-phone .meta-value {
+      left: 104px;
+    }
+    .header-row th {
+      width: 110px;
+      min-width: 84px;
+      height: 166px;
+      padding: 8px 6px;
+      vertical-align: middle;
+      white-space: normal;
+      font-size: 18px;
+      font-weight: 400;
+      line-height: 1.25;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+    .header-row th:first-child {
+      width: 64px;
+      min-width: 64px;
+      writing-mode: horizontal-tb;
+    }
+    .horizontal-date {
+      display: inline-block;
+      writing-mode: horizontal-tb;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+    tr:not(.title-row):not(.meta-row):not(.header-row) th {
+      width: 64px;
+      min-width: 64px;
+      height: 52px;
+      padding: 4px 6px;
+      text-align: center;
       font-size: 16px;
       font-weight: 400;
     }
-    tr:not(.title-row):not(.meta-row) th:first-child {
-      width: 54px;
-      font-size: 16px;
-    }
-    tr:not(.title-row):not(.meta-row):not(.final-row) th:not(:first-child) {
-      writing-mode: vertical-rl;
-      text-orientation: upright;
-      height: 150px;
-      font-size: 13px;
-      letter-spacing: 0;
-    }
     td {
-      position: relative;
+      height: 52px;
+      padding: 4px 7px;
       font-size: 18px;
       font-weight: 700;
     }
