@@ -868,7 +868,7 @@ function setValue(name, dateId, itemKey, value) {
   }
   const normalizedValue = Math.max(0, Number(value) || 0);
   ceremonyData.fellowships[name][dateId][itemKey] = normalizedValue;
-  patchState({ type: "value", ceremonyId: getActiveCeremonyConfig().id, fellowship: name, dateId, itemKey, value: normalizedValue });
+  patchState({ type: "value", ceremonyId: getActiveCeremonyConfig().id, fellowship: name, dateId, itemKey, value });
 }
 
 function getTargetValue(name, itemKey) {
