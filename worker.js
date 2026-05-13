@@ -752,6 +752,22 @@ function getDayTotals(ceremonyData, dateId) {
   return totals;
 }
 
+function addReportTotals(targetTotals, sourceTotals) {
+  REPORT_ITEMS.forEach((item) => {
+    targetTotals[item.key] += sourceTotals[item.key] || 0;
+  });
+}
+
+function getCumulativeDayTotals(ceremonyData, dateId) {
+  const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
+  getWeekDates(ceremonyData).forEach((date) => {
+    if (date.id <= dateId) {
+      addReportTotals(totals, getDayTotals(ceremonyData, date.id));
+    }
+  });
+  return totals;
+}
+
 function getFinalTotals(ceremonyData) {
   const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
   FELLOWSHIP_NAMES.forEach((fellowship) => {
@@ -759,6 +775,15 @@ function getFinalTotals(ceremonyData) {
       totals[item.key] += getStoredValue(ceremonyData, fellowship, ceremonyData.weekEnd, item.key) || getStoredValue(ceremonyData, fellowship, FINAL_ROW_ID, item.key);
     });
   });
+  return totals;
+}
+
+function getCumulativeFinalTotals(ceremonyData) {
+  const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
+  getWeekDates(ceremonyData).forEach((date) => {
+    addReportTotals(totals, getDayTotals(ceremonyData, date.id));
+  });
+  addReportTotals(totals, getFinalTotals(ceremonyData));
   return totals;
 }
 
@@ -837,7 +862,7 @@ function buildSummaryReportHtml(state) {
   `);
 
   getWeekDates(ceremonyData).forEach((date) => {
-    const totals = getDayTotals(ceremonyData, date.id);
+    const totals = getCumulativeDayTotals(ceremonyData, date.id);
     rows.push(`
       <tr>
         <th>${escapeHtml(date.label)}</th>
@@ -849,7 +874,7 @@ function buildSummaryReportHtml(state) {
     `);
   });
 
-  const finalTotals = getFinalTotals(ceremonyData);
+  const finalTotals = getCumulativeFinalTotals(ceremonyData);
   rows.push(`
     <tr class="final-row">
       <th>最終</th>

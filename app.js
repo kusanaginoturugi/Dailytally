@@ -1348,6 +1348,24 @@ function getDayTotals(dateId) {
   return totals;
 }
 
+function addTotals(targetTotals, sourceTotals) {
+  getActiveItems().forEach((item) => {
+    targetTotals[item.key] += sourceTotals[item.key] || 0;
+  });
+}
+
+function getCumulativeDayTotals(dateId) {
+  const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
+
+  getWeekDates().forEach((date) => {
+    if (date.id <= dateId) {
+      addTotals(totals, getDayTotals(date.id));
+    }
+  });
+
+  return totals;
+}
+
 function getFinalTotals() {
   const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
 
@@ -1356,6 +1374,17 @@ function getFinalTotals() {
       totals[item.key] += getFinalValue(name, item.key);
     });
   });
+
+  return totals;
+}
+
+function getCumulativeFinalTotals() {
+  const totals = Object.fromEntries(getActiveItems().map((item) => [item.key, 0]));
+
+  getWeekDates().forEach((date) => {
+    addTotals(totals, getDayTotals(date.id));
+  });
+  addTotals(totals, getFinalTotals());
 
   return totals;
 }
@@ -1568,7 +1597,7 @@ function renderSummaryPage() {
   tbody.appendChild(targetRow);
 
   getWeekDates().forEach((date) => {
-    const dayTotals = getDayTotals(date.id);
+    const dayTotals = getCumulativeDayTotals(date.id);
     const tr = document.createElement("tr");
 
     const dateCell = document.createElement("th");
@@ -1586,7 +1615,7 @@ function renderSummaryPage() {
   });
 
   const totalRow = content.querySelector("#weeklyTotalRow");
-  const finalTotals = getFinalTotals();
+  const finalTotals = getCumulativeFinalTotals();
   const labelCell = document.createElement("th");
   labelCell.textContent = "最終";
   totalRow.appendChild(labelCell);
