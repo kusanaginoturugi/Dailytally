@@ -1237,8 +1237,9 @@ async function handleStatePatch(request, env) {
       ceremonyData.fellowships[fellowship][dateId] = createEmptyTargets();
     }
     const normalizedValue = toNumber(patch.value);
+    const isClearingValue = String(patch.value ?? "") === "";
     const previousValue = getPreviousCumulativeValue(ceremonyData, fellowship, dateId, itemKey);
-    if (previousValue > 0 && normalizedValue < previousValue) {
+    if (!isClearingValue && previousValue > 0 && normalizedValue < previousValue) {
       return jsonResponse(
         { error: `累計数のため、前回入力値（${previousValue}）以上の数字を入力してください。` },
         { status: 400 },

@@ -1006,6 +1006,10 @@ function getPreviousCumulativeValue(name, dateId, itemKey) {
 }
 
 function validateCumulativeInput(name, dateId, itemKey, value) {
+  if (String(value ?? "") === "") {
+    return "";
+  }
+
   const previousValue = getPreviousCumulativeValue(name, dateId, itemKey);
   const nextValue = Number(value) || 0;
 
