@@ -605,11 +605,12 @@ async function refreshSessionUser(request, env) {
 
 function requestWithUserHeaders(request, user) {
   const headers = new Headers(request.headers);
-  headers.set("x-dailytally-login-id", user.loginId || "");
-  headers.set("x-dailytally-fellowship", user.fellowship || "");
-  headers.set("x-dailytally-name", user.name || "");
-  headers.set("x-dailytally-email", user.email || "");
-  headers.set("x-dailytally-role", user.role || "");
+  const encodeHeaderValue = (value) => encodeURIComponent(String(value || ""));
+  headers.set("x-dailytally-login-id", encodeHeaderValue(user.loginId));
+  headers.set("x-dailytally-fellowship", encodeHeaderValue(user.fellowship));
+  headers.set("x-dailytally-name", encodeHeaderValue(user.name));
+  headers.set("x-dailytally-email", encodeHeaderValue(user.email));
+  headers.set("x-dailytally-role", encodeHeaderValue(user.role));
   return new Request(request, { headers });
 }
 
