@@ -1515,113 +1515,41 @@ function getSummaryPdfFileName() {
   return `第${getCeremonyNumber()}回${ceremony}_集計表.pdf`;
 }
 
-function getHeaderSegmentsForPdf(cell) {
-  const segments = [];
-  let current = "";
-  let dateText = "";
-
-  cell.childNodes.forEach((node) => {
-    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "BR") {
-      if (current) {
-        segments.push(current);
-        current = "";
-      }
-      return;
-    }
-
-    if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains("horizontal-date")) {
-      dateText = node.textContent.trim();
-      return;
-    }
-
-    current += node.textContent || "";
-  });
-
-  if (current) {
-    segments.push(current);
+function getDownloadFileName(response) {
+  const disposition = response.headers.get("content-disposition") || "";
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match) {
+    return decodeURIComponent(utf8Match[1]);
   }
 
-  return { segments: segments.map((segment) => segment.trim()).filter(Boolean), dateText };
-}
-
-function prepareSummaryPdfClone(clonedDocument) {
-  const clonedPrintArea = clonedDocument.getElementById("summaryPrintArea");
-  if (!clonedPrintArea) {
-    return;
+  const asciiMatch = disposition.match(/filename="([^"]+)"/i);
+  if (asciiMatch) {
+    return asciiMatch[1];
   }
 
-  clonedPrintArea.classList.add("summary-pdf-capture");
-  clonedPrintArea.querySelectorAll("input.target-input").forEach((input) => {
-    const value = clonedDocument.createElement("span");
-    value.className = "summary-value pdf-target-value";
-    value.textContent = input.value || "";
-    input.replaceWith(value);
-  });
-
-  clonedPrintArea.querySelectorAll(".summary-table thead tr:last-child th:not(:first-child)").forEach((cell) => {
-    const { segments, dateText } = getHeaderSegmentsForPdf(cell);
-    const wrapper = clonedDocument.createElement("span");
-    wrapper.className = "pdf-vertical-cell";
-    if (segments.join("").includes("御神水")) {
-      wrapper.classList.add("pdf-water-cell");
-    }
-
-    segments.forEach((segment) => {
-      const line = clonedDocument.createElement("span");
-      line.className = "pdf-vertical-line";
-      Array.from(segment).forEach((character) => {
-        const char = clonedDocument.createElement("span");
-        char.className = "pdf-vertical-char";
-        char.textContent = character;
-        line.appendChild(char);
-      });
-      wrapper.appendChild(line);
-    });
-
-    if (dateText) {
-      const date = clonedDocument.createElement("span");
-      date.className = "horizontal-date pdf-horizontal-date";
-      date.textContent = dateText;
-      wrapper.appendChild(date);
-    }
-
-    cell.replaceChildren(wrapper);
-  });
+  return getSummaryPdfFileName();
 }
 
 async function saveSummaryPdf(button) {
-  const printArea = document.getElementById("summaryPrintArea");
-  if (!printArea || !window.html2canvas || !window.jspdf?.jsPDF) {
-    alert("PDF保存の準備ができていません。画面を再読み込みしてからもう一度お試しください。");
-    return;
-  }
-
   const originalText = button.textContent;
   button.disabled = true;
   button.textContent = "保存中...";
 
   try {
-    const canvas = await window.html2canvas(printArea, {
-      backgroundColor: "#ffffff",
-      scale: 2,
-      useCORS: true,
-      onclone: prepareSummaryPdfClone,
-    });
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const margin = 15;
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const maxWidth = pageWidth - margin * 2;
-    const maxHeight = pageHeight - margin * 2;
-    const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
-    const imageWidth = canvas.width * ratio;
-    const imageHeight = canvas.height * ratio;
-    const x = (pageWidth - imageWidth) / 2;
-    const y = margin;
+    const response = await apiFetch("/api/report-pdf");
+    if (!response.ok) {
+      throw new Error(`PDF download failed: ${response.status}`);
+    }
 
-    pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y, imageWidth, imageHeight);
-    pdf.save(getSummaryPdfFileName());
+    const pdfBlob = await response.blob();
+    const downloadUrl = URL.createObjectURL(pdfBlob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = downloadUrl;
+    downloadLink.download = getDownloadFileName(response);
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    URL.revokeObjectURL(downloadUrl);
   } catch (error) {
     console.error("PDFを保存できませんでした。", error);
     alert("PDFを保存できませんでした。もう一度お試しください。");
