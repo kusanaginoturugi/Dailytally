@@ -941,7 +941,23 @@ function updateNumberInputSize(input) {
   input.classList.toggle("compact-number", input.value.length >= 4);
 }
 
-function createNumberInput(currentValue, onChange, className = "") {
+function setInputWarning(container, message) {
+  const warning = container?.querySelector(".input-warning");
+  if (!warning) {
+    return;
+  }
+
+  warning.textContent = message || "";
+  warning.hidden = !message;
+}
+
+function setInputInvalid(input, message) {
+  input.classList.toggle("invalid-number", Boolean(message));
+  input.setAttribute("aria-invalid", message ? "true" : "false");
+  input.title = message || "";
+}
+
+function createNumberInput(currentValue, onChange, className = "", options = {}) {
   const input = document.createElement("input");
   input.className = className;
   input.type = "text";
@@ -953,6 +969,14 @@ function createNumberInput(currentValue, onChange, className = "") {
   input.addEventListener("input", () => {
     input.value = input.value.replace(/\D/g, "");
     updateNumberInputSize(input);
+
+    const validationMessage = options.validate ? options.validate(input.value) : "";
+    setInputInvalid(input, validationMessage);
+    setInputWarning(options.warningContainer, validationMessage);
+    if (validationMessage) {
+      return;
+    }
+
     onChange(input.value);
   });
   return input;
@@ -964,6 +988,32 @@ function createTargetInput(name, itemKey, currentValue) {
 
 function createSummaryTargetInput(itemKey, currentValue) {
   return createNumberInput(currentValue, (value) => setSummaryTargetValue(itemKey, value), "target-input");
+}
+
+function getPreviousCumulativeValue(name, dateId, itemKey) {
+  let previousValue = 0;
+
+  getWeekDates().forEach((date) => {
+    if (date.id < dateId) {
+      const value = getValue(name, date.id, itemKey);
+      if (value > 0) {
+        previousValue = value;
+      }
+    }
+  });
+
+  return previousValue;
+}
+
+function validateCumulativeInput(name, dateId, itemKey, value) {
+  const previousValue = getPreviousCumulativeValue(name, dateId, itemKey);
+  const nextValue = Number(value) || 0;
+
+  if (previousValue > 0 && nextValue < previousValue) {
+    return `累計数のため、前回入力値（${previousValue}）以上の数字を入力してください。`;
+  }
+
+  return "";
 }
 
 function appendUnit(cell, unit) {
@@ -1116,6 +1166,7 @@ function renderInputPage(name) {
   const template = document.getElementById("inputPageTemplate");
   const content = template.content.cloneNode(true);
   content.querySelector(".page-title").textContent = `第${getCeremonyNumber()}回${getActiveCeremonyConfig().name}　${name}`;
+  const inputSection = content.querySelector(".input-page");
 
   fillHeaderRow(content.querySelector("#inputHeaderRow"));
   const tbody = content.querySelector("tbody");
@@ -1156,7 +1207,10 @@ function renderInputPage(name) {
       const currentValue = getValue(name, date.id, item.key);
 
       if (canEditDateForFellowship(name, date.id)) {
-        const input = createNumberInput(currentValue, (value) => setValue(name, date.id, item.key, value));
+        const input = createNumberInput(currentValue, (value) => setValue(name, date.id, item.key, value), "", {
+          validate: (value) => validateCumulativeInput(name, date.id, item.key, value),
+          warningContainer: inputSection,
+        });
         td.appendChild(input);
         appendUnit(td, item.unit);
       } else {
@@ -1179,7 +1233,10 @@ function renderInputPage(name) {
     const currentValue = getFinalValue(name, item.key);
 
     if (canEditDateForFellowship(name, getActiveCeremonyData().weekEnd)) {
-      const input = createNumberInput(currentValue, (value) => setValue(name, getActiveCeremonyData().weekEnd, item.key, value));
+      const input = createNumberInput(currentValue, (value) => setValue(name, getActiveCeremonyData().weekEnd, item.key, value), "", {
+        validate: (value) => validateCumulativeInput(name, getActiveCeremonyData().weekEnd, item.key, value),
+        warningContainer: inputSection,
+      });
       td.appendChild(input);
       appendUnit(td, item.unit);
     } else {

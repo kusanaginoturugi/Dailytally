@@ -742,6 +742,22 @@ function getStoredValue(ceremonyData, fellowship, dateId, itemKey) {
   return Number(ceremonyData.fellowships?.[fellowship]?.[dateId]?.[itemKey]) || 0;
 }
 
+function getPreviousCumulativeValue(ceremonyData, fellowship, dateId, itemKey) {
+  const normalizedDateId = dateId === FINAL_ROW_ID ? ceremonyData.weekEnd : dateId;
+  let previousValue = 0;
+
+  getWeekDates(ceremonyData).forEach((date) => {
+    if (date.id < normalizedDateId) {
+      const value = getStoredValue(ceremonyData, fellowship, date.id, itemKey);
+      if (value > 0) {
+        previousValue = value;
+      }
+    }
+  });
+
+  return previousValue;
+}
+
 function getDayTotals(ceremonyData, dateId) {
   const totals = Object.fromEntries(REPORT_ITEMS.map((item) => [item.key, 0]));
   FELLOWSHIP_NAMES.forEach((fellowship) => {
@@ -1219,7 +1235,15 @@ async function handleStatePatch(request, env) {
     if (!ceremonyData.fellowships[fellowship][dateId]) {
       ceremonyData.fellowships[fellowship][dateId] = createEmptyTargets();
     }
-    ceremonyData.fellowships[fellowship][dateId][itemKey] = toNumber(patch.value);
+    const normalizedValue = toNumber(patch.value);
+    const previousValue = getPreviousCumulativeValue(ceremonyData, fellowship, dateId, itemKey);
+    if (previousValue > 0 && normalizedValue < previousValue) {
+      return jsonResponse(
+        { error: `累計数のため、前回入力値（${previousValue}）以上の数字を入力してください。` },
+        { status: 400 },
+      );
+    }
+    ceremonyData.fellowships[fellowship][dateId][itemKey] = normalizedValue;
   } else if (patch.type === "target") {
     if (patch.fellowship) {
       if (!canWriteFellowship(request, patch.fellowship)) {

@@ -268,6 +268,17 @@ main {
   text-align: center;
 }
 
+.input-warning {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid #f87171;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .data-table input.target-input {
   width: 96px;
   border: 1px solid #a1a1aa;
@@ -307,6 +318,11 @@ main {
 .input-page .data-table input.target-input.compact-number {
   font-size: 16px;
   letter-spacing: 0;
+}
+
+.input-page .data-table input.invalid-number {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.16);
 }
 
 .input-page .input-value {
