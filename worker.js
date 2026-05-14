@@ -934,6 +934,56 @@ function mergeCookies(...values) {
   return Array.from(pairs, ([name, value]) => `${name}=${value}`).join("; ");
 }
 
+async function fetchWithCookies(url, cookie, options = {}) {
+  let currentUrl = url;
+  let currentCookie = cookie;
+  let response = await fetch(currentUrl, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      cookie: currentCookie,
+    },
+    redirect: "manual",
+  });
+  currentCookie = mergeCookies(currentCookie, parseCookieHeaders(response.headers));
+
+  for (let redirects = 0; redirects < 5 && response.status >= 300 && response.status < 400; redirects += 1) {
+    const location = response.headers.get("location");
+    if (!location) {
+      break;
+    }
+    currentUrl = new URL(location, currentUrl).toString();
+    response = await fetch(currentUrl, {
+      headers: { cookie: currentCookie },
+      redirect: "manual",
+    });
+    currentCookie = mergeCookies(currentCookie, parseCookieHeaders(response.headers));
+  }
+
+  return { response, cookie: currentCookie, url: currentUrl };
+}
+
+async function followResponseRedirects(url, response, cookie) {
+  let currentUrl = url;
+  let currentResponse = response;
+  let currentCookie = cookie;
+
+  for (let redirects = 0; redirects < 5 && currentResponse.status >= 300 && currentResponse.status < 400; redirects += 1) {
+    const location = currentResponse.headers.get("location");
+    if (!location) {
+      break;
+    }
+    currentUrl = new URL(location, currentUrl).toString();
+    currentResponse = await fetch(currentUrl, {
+      headers: { cookie: currentCookie },
+      redirect: "manual",
+    });
+    currentCookie = mergeCookies(currentCookie, parseCookieHeaders(currentResponse.headers));
+  }
+
+  return { response: currentResponse, cookie: currentCookie, url: currentUrl };
+}
+
 function extractLoginToken(html) {
   return html.match(/name="token"\s+value="([^"]+)"/)?.[1] || "";
 }
@@ -949,6 +999,19 @@ function extractReportFormAction(html) {
 
 function hasReportFormFields(html) {
   return /name=["']up_file\[\]["']/.test(html) && /name=["']dendokai["']/.test(html);
+}
+
+function summarizeTendoPage(html, url, status) {
+  const title = String(html || "").match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/\s+/g, " ").trim() || "(no title)";
+  const inputNames = Array.from(String(html || "").matchAll(/\bname=["']([^"']+)["']/gi))
+    .map((match) => match[1])
+    .slice(0, 12)
+    .join(",");
+  const formActions = Array.from(String(html || "").matchAll(/<form\b[^>]*\baction=["']([^"']*)["'][^>]*>/gi))
+    .map((match) => match[1] || "(empty)")
+    .slice(0, 6)
+    .join(",");
+  return `status=${status}, url=${url}, title=${title}, names=${inputNames || "(none)"}, actions=${formActions || "(none)"}`;
 }
 
 function buildSummaryReportHtml(state) {
@@ -1175,26 +1238,14 @@ async function tendoLogin(env) {
     },
     body,
   });
-  let advancedPage = response;
-  let finalCookie = mergeCookies(cookie, parseCookieHeaders(response.headers));
-  for (let redirects = 0; redirects < 5 && advancedPage.status >= 300 && advancedPage.status < 400; redirects += 1) {
-    const location = advancedPage.headers.get("location");
-    if (!location) {
-      break;
-    }
-    advancedPage = await fetch(new URL(location, TENDO_LOGIN_URL).toString(), {
-      headers: { cookie: finalCookie },
-      redirect: "manual",
-    });
-    finalCookie = mergeCookies(finalCookie, parseCookieHeaders(advancedPage.headers));
-  }
-  const html = await advancedPage.text();
+  const followed = await followResponseRedirects(TENDO_LOGIN_URL, response, mergeCookies(cookie, parseCookieHeaders(response.headers)));
+  const html = await followed.response.text();
 
   if (!html.includes("/advanced/logout.php")) {
-    throw new Error(`tendo.net login did not reach the advanced page: status=${advancedPage.status}`);
+    throw new Error(`tendo.net login did not reach the advanced page: ${summarizeTendoPage(html, followed.url, followed.response.status)}`);
   }
 
-  return finalCookie;
+  return followed.cookie;
 }
 
 async function generateSummaryPdf(env, state) {
@@ -1232,18 +1283,16 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
     throw new Error("REPORT_REMOTE_SUBMIT is not true");
   }
 
-  const onlinePage = await fetch(TENDO_ONLINE_URL, {
-    headers: { cookie },
-    redirect: "follow",
-  });
-  const onlineHtml = await onlinePage.text();
+  const onlinePage = await fetchWithCookies(TENDO_ONLINE_URL, cookie);
+  cookie = onlinePage.cookie;
+  const onlineHtml = await onlinePage.response.text();
   if (onlineHtml.includes("申請者登録フォーム")) {
     throw new Error("tendo.net applicant registration is not completed");
   }
 
   const formAction = extractReportFormAction(onlineHtml);
   if (!formAction && !hasReportFormFields(onlineHtml)) {
-    throw new Error("tendo.net online report form was not found");
+    throw new Error(`tendo.net online report form was not found: ${summarizeTendoPage(onlineHtml, onlinePage.url, onlinePage.response.status)}`);
   }
   const postUrl = formAction || TENDO_ONLINE_URL;
   const fileField = env.REPORT_ONLINE_FILE_FIELD || "up_file[]";
