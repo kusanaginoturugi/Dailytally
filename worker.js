@@ -938,6 +938,15 @@ function extractLoginToken(html) {
   return html.match(/name="token"\s+value="([^"]+)"/)?.[1] || "";
 }
 
+function extractReportFormAction(html) {
+  const forms = String(html || "").match(/<form\b[\s\S]*?<\/form>/gi) || [];
+  const form = forms.find((candidate) => /name=["']up_file\[\]["']|name=["']dendokai["']|name=["']kannondo["']|name=["']mirokuji["']/.test(candidate));
+  if (!form) {
+    return "";
+  }
+  return form.match(/\baction=["']([^"']+)["']/i)?.[1] || "";
+}
+
 function buildSummaryReportHtml(state) {
   const ceremonyData = getCeremonyData(state, state.settings.ceremonyId);
   const rows = [];
@@ -1228,7 +1237,8 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
     throw new Error("tendo.net applicant registration is not completed");
   }
 
-  const postUrl = env.REPORT_ONLINE_POST_URL;
+  const formAction = extractReportFormAction(onlineHtml);
+  const postUrl = formAction || env.REPORT_ONLINE_POST_URL;
   const fileField = env.REPORT_ONLINE_FILE_FIELD || "up_file[]";
   const submitField = env.REPORT_ONLINE_SUBMIT_FIELD || "kannondo";
   const submitValue = submitField === "mirokuji" ? "弥勒寺へ送信" : "観音堂へ送信";
@@ -1244,15 +1254,16 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
   formData.set(fileField, new File([pdfBuffer], "dailytally-report.pdf", { type: "application/pdf" }));
   formData.set(submitField, submitValue);
 
-  const response = await fetch(new URL(postUrl, TENDO_ONLINE_URL).toString(), {
+  const resolvedPostUrl = new URL(postUrl, TENDO_ONLINE_URL).toString();
+  const response = await fetch(resolvedPostUrl, {
     method: "POST",
-    headers: { cookie },
+    headers: { cookie, referer: TENDO_ONLINE_URL },
     body: formData,
     redirect: "follow",
   });
   const text = await response.text();
   if (!response.ok || /エラー|失敗|ログイン/.test(text)) {
-    throw new Error(`tendo.net report submit returned ${response.status}: url=${new URL(postUrl, TENDO_ONLINE_URL).toString()}`);
+    throw new Error(`tendo.net report submit returned ${response.status}: url=${resolvedPostUrl}, formAction=${formAction || "(none)"}`);
   }
 }
 
