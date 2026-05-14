@@ -947,6 +947,10 @@ function extractReportFormAction(html) {
   return form.match(/\baction=["']([^"']+)["']/i)?.[1] || "";
 }
 
+function hasReportFormFields(html) {
+  return /name=["']up_file\[\]["']/.test(html) && /name=["']dendokai["']/.test(html);
+}
+
 function buildSummaryReportHtml(state) {
   const ceremonyData = getCeremonyData(state, state.settings.ceremonyId);
   const rows = [];
@@ -1238,13 +1242,13 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
   }
 
   const formAction = extractReportFormAction(onlineHtml);
-  const postUrl = formAction || env.REPORT_ONLINE_POST_URL;
+  if (!formAction && !hasReportFormFields(onlineHtml)) {
+    throw new Error("tendo.net online report form was not found");
+  }
+  const postUrl = formAction || TENDO_ONLINE_URL;
   const fileField = env.REPORT_ONLINE_FILE_FIELD || "up_file[]";
   const submitField = env.REPORT_ONLINE_SUBMIT_FIELD || "kannondo";
   const submitValue = submitField === "mirokuji" ? "弥勒寺へ送信" : "観音堂へ送信";
-  if (!postUrl) {
-    throw new Error("REPORT_ONLINE_POST_URL is not configured");
-  }
 
   const formData = new FormData();
   formData.set("name", state.reportAutomation.senderName);
