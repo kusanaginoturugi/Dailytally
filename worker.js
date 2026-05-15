@@ -1011,7 +1011,12 @@ function summarizeTendoPage(html, url, status) {
     .map((match) => match[1] || "(empty)")
     .slice(0, 6)
     .join(",");
-  return `status=${status}, url=${url}, title=${title}, names=${inputNames || "(none)"}, actions=${formActions || "(none)"}`;
+  const links = Array.from(String(html || "").matchAll(/<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi))
+    .map((match) => `${match[2].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()}:${match[1]}`)
+    .filter((link) => /報告|送信|登録|申請|online|res|mail|form|upload/i.test(link))
+    .slice(0, 8)
+    .join(" | ");
+  return `status=${status}, url=${url}, title=${title}, names=${inputNames || "(none)"}, actions=${formActions || "(none)"}, links=${links || "(none)"}`;
 }
 
 function buildSummaryReportHtml(state) {
@@ -1283,7 +1288,8 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
     throw new Error("REPORT_REMOTE_SUBMIT is not true");
   }
 
-  const onlinePage = await fetchWithCookies(TENDO_ONLINE_URL, cookie);
+  const reportFormUrl = env.REPORT_ONLINE_FORM_URL || TENDO_ONLINE_URL;
+  const onlinePage = await fetchWithCookies(new URL(reportFormUrl, TENDO_ONLINE_URL).toString(), cookie);
   cookie = onlinePage.cookie;
   const onlineHtml = await onlinePage.response.text();
   if (onlineHtml.includes("申請者登録フォーム")) {
@@ -1294,7 +1300,7 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
   if (!formAction && !hasReportFormFields(onlineHtml)) {
     throw new Error(`tendo.net online report form was not found: ${summarizeTendoPage(onlineHtml, onlinePage.url, onlinePage.response.status)}`);
   }
-  const postUrl = formAction || TENDO_ONLINE_URL;
+  const postUrl = formAction || onlinePage.url;
   const fileField = env.REPORT_ONLINE_FILE_FIELD || "up_file[]";
   const submitField = env.REPORT_ONLINE_SUBMIT_FIELD || "kannondo";
   const submitValue = submitField === "mirokuji" ? "弥勒寺へ送信" : "観音堂へ送信";
@@ -1307,10 +1313,10 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
   formData.set(fileField, new File([pdfBuffer], "dailytally-report.pdf", { type: "application/pdf" }));
   formData.set(submitField, submitValue);
 
-  const resolvedPostUrl = new URL(postUrl, TENDO_ONLINE_URL).toString();
+  const resolvedPostUrl = new URL(postUrl, onlinePage.url).toString();
   const response = await fetch(resolvedPostUrl, {
     method: "POST",
-    headers: { cookie, referer: TENDO_ONLINE_URL },
+    headers: { cookie, referer: onlinePage.url },
     body: formData,
     redirect: "follow",
   });
