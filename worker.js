@@ -1030,6 +1030,24 @@ function summarizeTendoPage(html, url, status) {
   return `status=${status}, url=${url}, title=${title}, names=${inputNames || "(none)"}, actions=${formActions || "(none)"}, iframe=${iframe}, links=${links || "(none)"}`;
 }
 
+function getTextSnippet(html) {
+  return String(html || "")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+}
+
+function summarizeSubmitResult(html, url, status) {
+  return `${summarizeTendoPage(html, url, status)}, text=${getTextSnippet(html) || "(none)"}`;
+}
+
+function hasTendoSubmitSuccess(html) {
+  return /送信(?:しました|完了|されました)|受付(?:しました|完了)|登録(?:しました|完了)|完了しました|ありがとうございました/.test(String(html || ""));
+}
+
 async function findReportFormPage(env, cookie) {
   const candidates = [env.REPORT_ONLINE_FORM_URL, ...TENDO_REPORT_FORM_URLS].filter(Boolean);
   const diagnostics = [];
@@ -1359,6 +1377,10 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
   if (!response.ok || /エラー|失敗|ログイン/.test(text)) {
     throw new Error(`tendo.net report submit returned ${response.status}: url=${resolvedPostUrl}, formAction=${formAction || "(none)"}`);
   }
+  return {
+    confirmed: hasTendoSubmitSuccess(text),
+    summary: summarizeSubmitResult(text, response.url || resolvedPostUrl, response.status),
+  };
 }
 
 async function sendNotification(env, report, subject, body) {
@@ -1409,7 +1431,7 @@ async function sendReport(env, state, sendKey, startMessage) {
   try {
     const cookie = await tendoLogin(env);
     const pdfBuffer = await fetchReportPdf(env, state);
-    await submitOnlineReport(env, state, cookie, pdfBuffer);
+    const submitResult = await submitOnlineReport(env, state, cookie, pdfBuffer);
 
     report.lastSuccessAt = formatJSTTimestamp();
     report.lastSentKey = sendKey;
@@ -1417,11 +1439,16 @@ async function sendReport(env, state, sendKey, startMessage) {
     addReportHistory(report, {
       at: report.lastSuccessAt,
       key: sendKey,
-      status: "成功",
-      message: "オンライン報告を送信しました",
+      status: submitResult.confirmed ? "成功確認済み" : "送信結果未確認",
+      message: submitResult.summary,
     });
     await writeState(env.DB, state);
-    await sendNotification(env, report, "オンライン報告を送信しました", `送信完了: ${report.lastSuccessAt}`);
+    await sendNotification(
+      env,
+      report,
+      submitResult.confirmed ? "オンライン報告を送信しました" : "オンライン報告の送信結果を確認できません",
+      `${submitResult.confirmed ? "送信完了" : "送信結果未確認"}: ${report.lastSuccessAt}\n${submitResult.summary}`,
+    );
   } catch (error) {
     report.lastError = error instanceof Error ? error.message : String(error);
     addReportHistory(report, {
