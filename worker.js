@@ -1390,6 +1390,11 @@ async function runScheduledReport(env) {
 
   const report = state.reportAutomation;
   const sendKey = getDueSendKey(state, nowJST(now).toISOString().slice(0, 10));
+  await sendReport(env, state, sendKey, `${report.sendTime} の自動送信を開始`);
+}
+
+async function sendReport(env, state, sendKey, startMessage) {
+  const report = state.reportAutomation;
   report.lastAttemptAt = formatJSTTimestamp();
   report.lastAttemptKey = sendKey;
   report.lastError = "";
@@ -1397,7 +1402,7 @@ async function runScheduledReport(env) {
     at: report.lastAttemptAt,
     key: sendKey,
     status: "送信開始",
-    message: `${report.sendTime} の自動送信を開始`,
+    message: startMessage,
   });
   await writeState(env.DB, state);
 
@@ -1429,6 +1434,13 @@ async function runScheduledReport(env) {
     await sendNotification(env, report, "オンライン報告の送信に失敗しました", report.lastError);
     throw error;
   }
+}
+
+async function runManualReport(env) {
+  const state = await readState(env.DB);
+  const sendKey = `manual:${state.settings.ceremonyId}:${formatJSTTimestamp()}`;
+  await sendReport(env, state, sendKey, "手動送信を開始");
+  return state.reportAutomation;
 }
 
 function toNumber(value) {
@@ -1573,6 +1585,15 @@ async function handleApi(request, env) {
         "content-disposition": 'inline; filename="dailytally-report.pdf"',
       },
     });
+  }
+
+  if (url.pathname === "/api/report-send" && request.method === "POST") {
+    if (!canWriteAdmin(request)) {
+      return jsonResponse({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const reportAutomation = await runManualReport(env);
+    return jsonResponse({ ok: true, reportAutomation });
   }
 
   return jsonResponse({ error: "Not found" }, { status: 404 });

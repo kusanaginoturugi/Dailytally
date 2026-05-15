@@ -1285,6 +1285,36 @@ function renderReportHistory(listEl) {
   });
 }
 
+async function sendManualReport(button, unlockInput, reportStatus, reportHistoryList) {
+  const originalText = button.textContent;
+  button.disabled = true;
+  unlockInput.disabled = true;
+  button.textContent = "送信中...";
+
+  try {
+    const response = await apiFetch("/api/report-send", { method: "POST" });
+    if (!response.ok) {
+      throw new Error(`Report send API returned ${response.status}`);
+    }
+    const result = await response.json();
+    state.reportAutomation = {
+      ...createDefaultReportAutomation(),
+      ...(state.reportAutomation || {}),
+      ...(result.reportAutomation || {}),
+    };
+    reportStatus.textContent = getReportStatusText();
+    renderReportHistory(reportHistoryList);
+  } catch (error) {
+    console.error("オンライン報告を手動送信できませんでした。", error);
+    reportStatus.textContent = `${getReportStatusText()} 手動送信エラー: ${error.message || error}`;
+  } finally {
+    unlockInput.checked = false;
+    unlockInput.disabled = false;
+    button.textContent = originalText;
+    button.disabled = true;
+  }
+}
+
 function renderAdminPage() {
   const template = document.getElementById("adminPageTemplate");
   const content = template.content.cloneNode(true);
@@ -1300,6 +1330,8 @@ function renderAdminPage() {
   const reportNotifyEmailInput = content.querySelector("#reportNotifyEmail");
   const reportStatus = content.querySelector("#reportStatus");
   const reportHistoryList = content.querySelector("#reportHistoryList");
+  const manualReportUnlock = content.querySelector("#manualReportUnlock");
+  const manualReportButton = content.querySelector("#manualReportButton");
   const ceremonyData = getActiveCeremonyData();
   ensureCeremonyDates(ceremonyData);
   state.reportAutomation = {
@@ -1389,6 +1421,16 @@ function renderAdminPage() {
 
   [reportEnabledInput, reportSendTimeInput, reportSenderNameInput, reportBranchNameInput, reportBranchCodeInput, reportNotifyEmailInput].forEach((input) => {
     input.addEventListener("change", saveReportAutomation);
+  });
+
+  manualReportUnlock.addEventListener("change", () => {
+    manualReportButton.disabled = !manualReportUnlock.checked;
+  });
+  manualReportButton.addEventListener("click", () => {
+    if (manualReportButton.disabled || !manualReportUnlock.checked) {
+      return;
+    }
+    sendManualReport(manualReportButton, manualReportUnlock, reportStatus, reportHistoryList);
   });
 
   renderUserList(content);

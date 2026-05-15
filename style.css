@@ -129,6 +129,43 @@ main {
   font-size: 14px;
 }
 
+.manual-report-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.manual-report-unlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.manual-report-button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 18px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.manual-report-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.manual-report-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .report-history {
   margin-top: 16px;
   color: #3f3f46;
