@@ -52,9 +52,9 @@ const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const TENDO_LOGIN_URL = "https://tendo.net/advanced/login.php?url=/advanced/index.php";
 const TENDO_ONLINE_URL = "https://tendo.net/advanced/online.php";
 const TENDO_REPORT_FORM_URLS = [
+  "https://tendo.net/advanced/online.php",
   "https://tendo.net/advanced/app/activity",
   "https://tendo.net/advanced/app/doumu",
-  "https://tendo.net/advanced/online.php",
 ];
 const CEREMONY_DATE_PRESETS = {
   "jizo-sonno": { endMonth: 6, endDay: 20 },
@@ -1006,6 +1006,11 @@ function hasReportFormFields(html) {
   return /name=["']up_file\[\]["']/.test(html) && /name=["']dendokai["']/.test(html);
 }
 
+function extractReportIframeUrl(html) {
+  const iframes = Array.from(String(html || "").matchAll(/<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)).map((match) => match[1]);
+  return iframes.find((src) => /upload\.php|netvolante|up_file|dendokai/i.test(src)) || "";
+}
+
 function summarizeTendoPage(html, url, status) {
   const title = String(html || "").match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/\s+/g, " ").trim() || "(no title)";
   const inputNames = Array.from(String(html || "").matchAll(/\bname=["']([^"']+)["']/gi))
@@ -1021,7 +1026,8 @@ function summarizeTendoPage(html, url, status) {
     .filter((link) => /報告|送信|登録|申請|online|res|mail|form|upload/i.test(link))
     .slice(0, 8)
     .join(" | ");
-  return `status=${status}, url=${url}, title=${title}, names=${inputNames || "(none)"}, actions=${formActions || "(none)"}, links=${links || "(none)"}`;
+  const iframe = extractReportIframeUrl(html) || "(none)";
+  return `status=${status}, url=${url}, title=${title}, names=${inputNames || "(none)"}, actions=${formActions || "(none)"}, iframe=${iframe}, links=${links || "(none)"}`;
 }
 
 async function findReportFormPage(env, cookie) {
@@ -1038,6 +1044,16 @@ async function findReportFormPage(env, cookie) {
     }
     if (extractReportFormAction(html) || hasReportFormFields(html)) {
       return { ...page, html, cookie: currentCookie };
+    }
+    const iframeUrl = extractReportIframeUrl(html);
+    if (iframeUrl) {
+      const iframePage = await fetchWithCookies(new URL(iframeUrl, page.url).toString(), currentCookie);
+      currentCookie = iframePage.cookie;
+      const iframeHtml = await iframePage.response.text();
+      if (extractReportFormAction(iframeHtml) || hasReportFormFields(iframeHtml)) {
+        return { ...iframePage, html: iframeHtml, cookie: currentCookie };
+      }
+      diagnostics.push(summarizeTendoPage(iframeHtml, iframePage.url, iframePage.response.status));
     }
     diagnostics.push(summarizeTendoPage(html, page.url, page.response.status));
   }
