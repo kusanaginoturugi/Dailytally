@@ -51,6 +51,7 @@ const OIDC_COOKIE_NAME = "dailytally_oidc";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const TENDO_LOGIN_URL = "https://tendo.net/advanced/login.php?url=/advanced/index.php";
 const TENDO_ONLINE_URL = "https://tendo.net/advanced/online.php";
+const TENDO_REPORT_FORM_URL = "https://tendo.net/advanced/app/doumu";
 const CEREMONY_DATE_PRESETS = {
   "jizo-sonno": { endMonth: 6, endDay: 20 },
   "segaki-kuyo": { endMonth: 8, endDay: 9 },
@@ -1288,7 +1289,7 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
     throw new Error("REPORT_REMOTE_SUBMIT is not true");
   }
 
-  const reportFormUrl = env.REPORT_ONLINE_FORM_URL || TENDO_ONLINE_URL;
+  const reportFormUrl = env.REPORT_ONLINE_FORM_URL || TENDO_REPORT_FORM_URL;
   const onlinePage = await fetchWithCookies(new URL(reportFormUrl, TENDO_ONLINE_URL).toString(), cookie);
   cookie = onlinePage.cookie;
   const onlineHtml = await onlinePage.response.text();
