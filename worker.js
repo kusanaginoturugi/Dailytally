@@ -1620,7 +1620,8 @@ async function handleApi(request, env) {
     }
 
     const reportAutomation = await runManualReport(env);
-    return jsonResponse({ ok: true, reportAutomation });
+    const latestHistory = Array.isArray(reportAutomation.history) ? reportAutomation.history[0] : null;
+    return jsonResponse({ ok: true, reportAutomation, latestHistory });
   }
 
   return jsonResponse({ error: "Not found" }, { status: 404 });

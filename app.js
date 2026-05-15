@@ -1285,11 +1285,12 @@ function renderReportHistory(listEl) {
   });
 }
 
-async function sendManualReport(button, unlockInput, reportStatus, reportHistoryList) {
+async function sendManualReport(button, unlockInput, reportStatus, reportHistoryList, manualReportResult) {
   const originalText = button.textContent;
   button.disabled = true;
   unlockInput.disabled = true;
   button.textContent = "送信中...";
+  manualReportResult.textContent = "手動送信中...";
 
   try {
     const response = await apiFetch("/api/report-send", { method: "POST" });
@@ -1302,10 +1303,15 @@ async function sendManualReport(button, unlockInput, reportStatus, reportHistory
       ...(state.reportAutomation || {}),
       ...(result.reportAutomation || {}),
     };
+    const latest = Array.isArray(state.reportAutomation.history) ? state.reportAutomation.history[0] : null;
     reportStatus.textContent = getReportStatusText();
     renderReportHistory(reportHistoryList);
+    manualReportResult.textContent = latest
+      ? `手動送信完了: ${latest.status || "記録"} / ${latest.at || ""}`
+      : "手動送信完了";
   } catch (error) {
     console.error("オンライン報告を手動送信できませんでした。", error);
+    manualReportResult.textContent = `手動送信エラー: ${error.message || error}`;
     reportStatus.textContent = `${getReportStatusText()} 手動送信エラー: ${error.message || error}`;
   } finally {
     unlockInput.checked = false;
@@ -1332,6 +1338,7 @@ function renderAdminPage() {
   const reportHistoryList = content.querySelector("#reportHistoryList");
   const manualReportUnlock = content.querySelector("#manualReportUnlock");
   const manualReportButton = content.querySelector("#manualReportButton");
+  const manualReportResult = content.querySelector("#manualReportResult");
   const ceremonyData = getActiveCeremonyData();
   ensureCeremonyDates(ceremonyData);
   state.reportAutomation = {
@@ -1430,7 +1437,7 @@ function renderAdminPage() {
     if (manualReportButton.disabled || !manualReportUnlock.checked) {
       return;
     }
-    sendManualReport(manualReportButton, manualReportUnlock, reportStatus, reportHistoryList);
+    sendManualReport(manualReportButton, manualReportUnlock, reportStatus, reportHistoryList, manualReportResult);
   });
 
   renderUserList(content);
