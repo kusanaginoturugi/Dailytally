@@ -51,7 +51,11 @@ const OIDC_COOKIE_NAME = "dailytally_oidc";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const TENDO_LOGIN_URL = "https://tendo.net/advanced/login.php?url=/advanced/index.php";
 const TENDO_ONLINE_URL = "https://tendo.net/advanced/online.php";
-const TENDO_REPORT_FORM_URL = "https://tendo.net/advanced/app/doumu";
+const TENDO_REPORT_FORM_URLS = [
+  "https://tendo.net/advanced/app/activity",
+  "https://tendo.net/advanced/app/doumu",
+  "https://tendo.net/advanced/online.php",
+];
 const CEREMONY_DATE_PRESETS = {
   "jizo-sonno": { endMonth: 6, endDay: 20 },
   "segaki-kuyo": { endMonth: 8, endDay: 9 },
@@ -1020,6 +1024,27 @@ function summarizeTendoPage(html, url, status) {
   return `status=${status}, url=${url}, title=${title}, names=${inputNames || "(none)"}, actions=${formActions || "(none)"}, links=${links || "(none)"}`;
 }
 
+async function findReportFormPage(env, cookie) {
+  const candidates = [env.REPORT_ONLINE_FORM_URL, ...TENDO_REPORT_FORM_URLS].filter(Boolean);
+  const diagnostics = [];
+  let currentCookie = cookie;
+
+  for (const candidate of candidates) {
+    const page = await fetchWithCookies(new URL(candidate, TENDO_ONLINE_URL).toString(), currentCookie);
+    currentCookie = page.cookie;
+    const html = await page.response.text();
+    if (html.includes("申請者登録フォーム")) {
+      throw new Error("tendo.net applicant registration is not completed");
+    }
+    if (extractReportFormAction(html) || hasReportFormFields(html)) {
+      return { ...page, html, cookie: currentCookie };
+    }
+    diagnostics.push(summarizeTendoPage(html, page.url, page.response.status));
+  }
+
+  throw new Error(`tendo.net online report form was not found: ${diagnostics.join(" || ")}`);
+}
+
 function buildSummaryReportHtml(state) {
   const ceremonyData = getCeremonyData(state, state.settings.ceremonyId);
   const rows = [];
@@ -1289,18 +1314,11 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
     throw new Error("REPORT_REMOTE_SUBMIT is not true");
   }
 
-  const reportFormUrl = env.REPORT_ONLINE_FORM_URL || TENDO_REPORT_FORM_URL;
-  const onlinePage = await fetchWithCookies(new URL(reportFormUrl, TENDO_ONLINE_URL).toString(), cookie);
+  const onlinePage = await findReportFormPage(env, cookie);
   cookie = onlinePage.cookie;
-  const onlineHtml = await onlinePage.response.text();
-  if (onlineHtml.includes("申請者登録フォーム")) {
-    throw new Error("tendo.net applicant registration is not completed");
-  }
+  const onlineHtml = onlinePage.html;
 
   const formAction = extractReportFormAction(onlineHtml);
-  if (!formAction && !hasReportFormFields(onlineHtml)) {
-    throw new Error(`tendo.net online report form was not found: ${summarizeTendoPage(onlineHtml, onlinePage.url, onlinePage.response.status)}`);
-  }
   const postUrl = formAction || onlinePage.url;
   const fileField = env.REPORT_ONLINE_FILE_FIELD || "up_file[]";
   const submitField = env.REPORT_ONLINE_SUBMIT_FIELD || "kannondo";
