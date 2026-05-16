@@ -1355,8 +1355,6 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
   const formAction = extractReportFormAction(onlineHtml);
   const postUrl = formAction || onlinePage.url;
   const fileField = env.REPORT_ONLINE_FILE_FIELD || "up_file[]";
-  const submitField = env.REPORT_ONLINE_SUBMIT_FIELD || "kannondo";
-  const submitValue = submitField === "mirokuji" ? "弥勒寺へ送信" : "観音堂へ送信";
 
   const formData = new FormData();
   formData.set("name", state.reportAutomation.senderName);
@@ -1364,7 +1362,7 @@ async function submitOnlineReport(env, state, cookie, pdfBuffer) {
   formData.set("title", `${state.settings.ceremonyName || "毎日集計"} 集計表`);
   formData.set("text", "");
   formData.set(fileField, new File([pdfBuffer], "dailytally-report.pdf", { type: "application/pdf" }));
-  formData.set(submitField, submitValue);
+  formData.set("mirokuji", "弥勒寺へ送信");
 
   const resolvedPostUrl = new URL(postUrl, onlinePage.url).toString();
   const response = await fetch(resolvedPostUrl, {
